@@ -165,6 +165,7 @@
     <ClCompile Include="VertexBuffer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Debug.h" />
     <ClInclude Include="IndexBuffer.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="Shader.h" />
@@ -175,6 +176,8 @@
     <ClInclude Include="VertexBufferLayout.h" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="gold-dollar.png" />
+    <Image Include="icon.png" />
     <Image Include="thinking-face.png" />
   </ItemGroup>
   <ItemGroup>

@@ -9,6 +9,7 @@
 #include "IndexBuffer.h"
 #include "VertexArray.h"
 #include "Texture.h"
+#include "Debug.h"
 
 int main(void)
 {
@@ -36,13 +37,15 @@ int main(void)
         std::cout << "Error!" << std::endl;
 
     std::cout << glGetString(GL_VERSION) << std::endl;
+
+
     {
         /*vertex_data*/
         float positions[] = {
-            -0.5f,-0.5f, 0.0f, 0.0f,
-            0.5f, -0.5f, 1.0f, 0.0f,
-            0.5f, 0.5f, 1.0f, 1.0f,
-            -0.5f, 0.5f, 0.0f, 1.0f
+            -0.5f, -0.5f, 0.0f, 0.0f, // 0
+             0.5f, -0.5f, 1.0f, 0.0f, // 1
+             0.5f,  0.5f, 1.0f, 1.0f, // 2
+            -0.5f,  0.5f, 0.0f, 1.0f  // 3
         };
 
         /*index_datar*/
@@ -50,6 +53,9 @@ int main(void)
             0,1,2,
             2,3,0
         };
+
+        GLCall(glEnable(GL_BLEND));
+        GLCall(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
 
         /*make VertexArray*/
         VertexArray va;
@@ -69,7 +75,7 @@ int main(void)
         shader.Bind();
         shader.SetUniform4f("u_Color", 0.2f, 0.3f, 0.8f, 1.0f);
 
-        Texture texture("thinking-face.png");
+        Texture texture("icon.png");
         texture.Bind(0);
         shader.SetUniform1i("u_Texture", 0);
 

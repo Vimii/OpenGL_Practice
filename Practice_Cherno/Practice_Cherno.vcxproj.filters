@@ -77,9 +77,18 @@
     <ClInclude Include="Texture.h">
       <Filter>ソース ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="Debug.h">
+      <Filter>ソース ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="thinking-face.png">
+      <Filter>リソース ファイル</Filter>
+    </Image>
+    <Image Include="icon.png">
+      <Filter>リソース ファイル</Filter>
+    </Image>
+    <Image Include="gold-dollar.png">
       <Filter>リソース ファイル</Filter>
     </Image>
   </ItemGroup>
