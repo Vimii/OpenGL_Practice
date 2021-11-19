@@ -8,6 +8,7 @@
 #include "VertexBufferLayout.h"
 #include "IndexBuffer.h"
 #include "VertexArray.h"
+#include "Texture.h"
 
 int main(void)
 {
@@ -38,10 +39,10 @@ int main(void)
     {
         /*vertex_data*/
         float positions[] = {
-            -0.5f,-0.5f,
-            0.5f, -0.5f,
-            0.5f, 0.5f,
-            -0.5f, 0.5f
+            -0.5f,-0.5f, 0.0f, 0.0f,
+            0.5f, -0.5f, 1.0f, 0.0f,
+            0.5f, 0.5f, 1.0f, 1.0f,
+            -0.5f, 0.5f, 0.0f, 1.0f
         };
 
         /*index_datar*/
@@ -56,7 +57,8 @@ int main(void)
 
         /*make VertexBufferLayout*/
         VertexBufferLayout layout;
-        layout.Push<float>(2);
+        layout.Push<float>(2); //position
+        layout.Push<float>(2); //uv
         va.addBuffer(vb, layout);
 
         /*make IndexBuffer*/
@@ -66,6 +68,10 @@ int main(void)
         Shader shader("practice1.shader");
         shader.Bind();
         shader.SetUniform4f("u_Color", 0.2f, 0.3f, 0.8f, 1.0f);
+
+        Texture texture("thinking-face.png");
+        texture.Bind(0);
+        shader.SetUniform1i("u_Texture", 0);
 
         /*UnBind all before main loop*/
         va.UnBind();
