@@ -11,6 +11,15 @@
 #include "Texture.h"
 #include "Debug.h"
 
+#include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_glfw_gl3.h"
+
+#define WINDOW_WIDTH 960.0f
+#define WINDOW_HEIGHT 540.0f
+
+
 int main(void)
 {
     GLFWwindow* window;
@@ -19,8 +28,14 @@ int main(void)
     if (!glfwInit())
         return -1;
 
+    glfwWindowHint(GLFW_SAMPLES, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // To make MacOS happy; should not be needed
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
     /* Create a windowed mode window and its OpenGL context */
-    window = glfwCreateWindow(640, 480, "Hello OpenGL", NULL, NULL);
+    window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Hello OpenGL", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -38,14 +53,15 @@ int main(void)
 
     std::cout << glGetString(GL_VERSION) << std::endl;
 
+    glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
 
     {
         /*vertex_data*/
         float positions[] = {
-            -0.5f, -0.5f, 0.0f, 0.0f, // 0
-             0.5f, -0.5f, 1.0f, 0.0f, // 1
-             0.5f,  0.5f, 1.0f, 1.0f, // 2
-            -0.5f,  0.5f, 0.0f, 1.0f  // 3
+             0.0f, 0.0f, 0.0f, 0.0f, // 0
+             100.0f, 0.0f, 1.0f, 0.0f, // 1
+             100.0f, 100.0f, 1.0f, 1.0f, // 2
+             0.0f, 100.0f, 0.0f, 1.0f  // 3
         };
 
         /*index_datar*/
@@ -70,12 +86,15 @@ int main(void)
         /*make IndexBuffer*/
         IndexBuffer ib(indices, sizeof(indices));
 
+        glm::mat4 proj = glm::ortho(0.0f, WINDOW_WIDTH, 0.0f, WINDOW_HEIGHT, -1.0f, 1.0f);
+        glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(100, 0, 0));
+
         /*make Shader*/
-        Shader shader("practice1.shader");
+        Shader shader("res/shaders/practice1.shader");
         shader.Bind();
         shader.SetUniform4f("u_Color", 0.2f, 0.3f, 0.8f, 1.0f);
 
-        Texture texture("icon.png");
+        Texture texture("res/textures/icon.png");
         texture.Bind(0);
         shader.SetUniform1i("u_Texture", 0);
 
@@ -87,10 +106,20 @@ int main(void)
 
         /*make Renderer*/
         Renderer renderer;
-        
+
+        ImGui::CreateContext();
+        ImGui_ImplGlfwGL3_Init(window, true);
+        ImGui::StyleColorsDark();
+
         /*util valiables*/
         float r = 0.0f;
         float increment = 0.05f;
+        glm::vec3 translation(200, 200, 0);
+
+        bool show_demo_window = true;
+        bool show_another_window = false;
+        ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+
 
         /* Loop until the user closes the window */
         while (!glfwWindowShouldClose(window))
@@ -98,11 +127,18 @@ int main(void)
             /* Render here */
             renderer.Clear();
 
+            ImGui_ImplGlfwGL3_NewFrame();
+
             /*Draw Object*/
             {
+                glm::mat4 model = glm::translate(glm::mat4(1.0f), translation);
+                glm::mat4 mvp = proj * view * model;
+
                 /*Shader update*/
                 shader.Bind();
                 shader.SetUniform4f("u_Color", r, 0.3f, 0.8f, 1.0f);
+                shader.SetUniformMat4f("u_MVP", mvp);
+
 
                 /*Draw*/
                 renderer.Draw(va, ib, shader);
@@ -116,6 +152,15 @@ int main(void)
 
             r += increment;
 
+            {
+                ImGui::SliderFloat3("Translation", &translation.x, 0.0f, WINDOW_WIDTH);
+
+                ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+            }
+
+            ImGui::Render();
+            ImGui_ImplGlfwGL3_RenderDrawData(ImGui::GetDrawData());
+
             /* Swap front and back buffers */
             glfwSwapBuffers(window);
 
@@ -123,6 +168,8 @@ int main(void)
             glfwPollEvents();
         }
     }
+    ImGui_ImplGlfwGL3_Shutdown();
+    ImGui::DestroyContext();
     glfwTerminate();
     return 0;
 }
