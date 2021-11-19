@@ -58,10 +58,10 @@ int main(void)
     {
         /*vertex_data*/
         float positions[] = {
-             0.0f, 0.0f, 0.0f, 0.0f, // 0
-             100.0f, 0.0f, 1.0f, 0.0f, // 1
-             100.0f, 100.0f, 1.0f, 1.0f, // 2
-             0.0f, 100.0f, 0.0f, 1.0f  // 3
+             -50.0f, -50.0f, 0.0f, 0.0f, // 0
+             50.0f, -50.0f, 1.0f, 0.0f, // 1
+             50.0f, 50.0f, 1.0f, 1.0f, // 2
+             -50.0f, 50.0f, 0.0f, 1.0f  // 3
         };
 
         /*index_datar*/
@@ -87,12 +87,11 @@ int main(void)
         IndexBuffer ib(indices, sizeof(indices));
 
         glm::mat4 proj = glm::ortho(0.0f, WINDOW_WIDTH, 0.0f, WINDOW_HEIGHT, -1.0f, 1.0f);
-        glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(100, 0, 0));
+        glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, 0));
 
         /*make Shader*/
         Shader shader("res/shaders/practice1.shader");
         shader.Bind();
-        shader.SetUniform4f("u_Color", 0.2f, 0.3f, 0.8f, 1.0f);
 
         Texture texture("res/textures/icon.png");
         texture.Bind(0);
@@ -114,12 +113,8 @@ int main(void)
         /*util valiables*/
         float r = 0.0f;
         float increment = 0.05f;
-        glm::vec3 translation(200, 200, 0);
-
-        bool show_demo_window = true;
-        bool show_another_window = false;
-        ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-
+        glm::vec3 translationA(200, 200, 0);
+        glm::vec3 translationB(400, 200, 0);
 
         /* Loop until the user closes the window */
         while (!glfwWindowShouldClose(window))
@@ -131,17 +126,24 @@ int main(void)
 
             /*Draw Object*/
             {
-                glm::mat4 model = glm::translate(glm::mat4(1.0f), translation);
-                glm::mat4 mvp = proj * view * model;
-
-                /*Shader update*/
-                shader.Bind();
-                shader.SetUniform4f("u_Color", r, 0.3f, 0.8f, 1.0f);
-                shader.SetUniformMat4f("u_MVP", mvp);
 
 
-                /*Draw*/
-                renderer.Draw(va, ib, shader);
+                {
+                    glm::mat4 model = glm::translate(glm::mat4(1.0f), translationA);
+                    glm::mat4 mvp = proj * view * model;
+                    shader.SetUniformMat4f("u_MVP", mvp);
+                    shader.Bind();
+                    renderer.Draw(va, ib, shader);
+                }
+                {
+                    glm::mat4 model = glm::translate(glm::mat4(1.0f), translationB);
+                    glm::mat4 mvp = proj * view * model;
+                    shader.SetUniformMat4f("u_MVP", mvp);
+                    shader.Bind();
+                    renderer.Draw(va, ib, shader);
+                }
+
+
             }
 
             /*Update valiables*/
@@ -153,7 +155,8 @@ int main(void)
             r += increment;
 
             {
-                ImGui::SliderFloat3("Translation", &translation.x, 0.0f, WINDOW_WIDTH);
+                ImGui::SliderFloat3("Translation A", &translationA.x, 0.0f, WINDOW_WIDTH);
+                ImGui::SliderFloat3("Translation B", &translationB.x, 0.0f, WINDOW_WIDTH);
 
                 ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             }
