@@ -16,8 +16,8 @@
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_glfw_gl3.h"
 
-#define WINDOW_WIDTH 960.0f
-#define WINDOW_HEIGHT 540.0f
+#define WINDOW_WIDTH 1280.0f
+#define WINDOW_HEIGHT 720.0f
 
 
 int main(void)
@@ -126,8 +126,6 @@ int main(void)
 
             /*Draw Object*/
             {
-
-
                 {
                     glm::mat4 model = glm::translate(glm::mat4(1.0f), translationA);
                     glm::mat4 mvp = proj * view * model;
@@ -142,8 +140,6 @@ int main(void)
                     shader.Bind();
                     renderer.Draw(va, ib, shader);
                 }
-
-
             }
 
             /*Update valiables*/
