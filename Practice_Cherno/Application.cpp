@@ -10,6 +10,7 @@
 #include "VertexArray.h"
 #include "Texture.h"
 #include "Debug.h"
+#include "Camera.h"
 
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
@@ -19,27 +20,25 @@
 #define WINDOW_WIDTH 1280.0f
 #define WINDOW_HEIGHT 720.0f
 
+
+
+//camera
+Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 float FOV = 45.0f;
-glm::vec3 Cam_Pos(0.0f, 0.0f, 3.0f);
-glm::vec3 Cam_Target(0.0f, 0.0f, 0.0f);
-glm::vec3 Cam_Direction = glm::normalize(Cam_Pos - Cam_Target);
-glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
-glm::vec3 Cam_Right = glm::normalize(glm::cross(up, Cam_Direction));
-glm::vec3 Cam_Up = glm::vec3(0.0f,1.0f,0.0f);
-const float radius = 10.0f;
-glm::vec3 Cam_Front(0.0f, 0.0f, -1.0f);
-glm::vec3 direction;
-float yaw = 0.0f, pitch = 0.0f;
-float lastX = 400, lastY = 300;
+float lastX = WINDOW_WIDTH / 2.0f, lastY = WINDOW_HEIGHT / 2.0f;
 bool firstMouse = true;
-
-void mouse_callback(GLFWwindow* window, double xpos, double ypos);
-void processInput(GLFWwindow* window);
-
 
 //timing
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
+
+//call back function
+void mouse_callback(GLFWwindow* window, double xpos, double ypos);
+void processInput(GLFWwindow* window);
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
+
+
+
 
 int main(void)
 {
@@ -190,6 +189,10 @@ int main(void)
         /* Loop until the user closes the window */
         while (!glfwWindowShouldClose(window))
         {
+            float currentFrame = glfwGetTime();
+            deltaTime = currentFrame - lastFrame;
+            lastFrame = currentFrame;
+
             processInput(window);
 
             /* Render here */
@@ -197,12 +200,12 @@ int main(void)
 
             ImGui_ImplGlfwGL3_NewFrame();
 
+            /*View Update*/
+            glm::mat4 proj = glm::perspective(glm::radians(camera.Zoom), WINDOW_WIDTH / WINDOW_HEIGHT, 0.1f, 1000.0f);
+            glm::mat4 view = camera.GetViewMatrix();
+
             /*Draw Object*/
             {
-                glm::mat4 proj = glm::perspective(glm::radians(FOV), WINDOW_WIDTH / WINDOW_HEIGHT, 0.1f, 1000.0f);
-                float camX = sin(glfwGetTime()) * radius;
-                float camZ = cos(glfwGetTime()) * radius;
-                glm::mat4 view = glm::lookAt(Cam_Pos, Cam_Pos + Cam_Front, Cam_Up);
                 {
                     glm::mat4 model = glm::rotate(glm::mat4(1.0f), glm::radians(-55.0f), translationA);
                     glm::mat4 mvp = proj * view * model;
@@ -265,26 +268,11 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 
     float xoffset = xpos - lastX;
     float yoffset = lastY - ypos;
+
     lastX = xpos;
     lastY = ypos;
 
-    float sensitivity = 0.1f;
-    xoffset *= sensitivity;
-    yoffset *= sensitivity;
-
-    yaw += xoffset;
-    pitch += yoffset;
-
-    if (pitch > 89.0f)
-        pitch = 89.0f;
-    if (pitch < -89.0f)
-        pitch = -89.0f;
-
-    glm::vec3 direction;
-    direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-    direction.y = sin(glm::radians(pitch));
-    direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-    Cam_Front = glm::normalize(direction);
+    camera.ProcessMouseMovement(xoffset, yoffset);
 }
 
 void processInput(GLFWwindow* window)
@@ -292,25 +280,26 @@ void processInput(GLFWwindow* window)
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
-    float currentFrame = glfwGetTime();
-    deltaTime = currentFrame - lastFrame;
-    lastFrame = currentFrame;
-    float cameraSpeed; // adjust accordingly
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-        cameraSpeed = 100.0f * deltaTime;
+        camera.SpeedManager(true);
     else
-        cameraSpeed = 10.0f * deltaTime;
+        camera.SpeedManager(false);
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        Cam_Pos += cameraSpeed * Cam_Front;
+        camera.ProcessKeyboard(FORWARD, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        Cam_Pos -= cameraSpeed * Cam_Front;
-    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
-        Cam_Pos += cameraSpeed * Cam_Up;
-    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
-        Cam_Pos -= cameraSpeed * Cam_Up;
+        camera.ProcessKeyboard(BACKWARD, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        Cam_Pos -= glm::normalize(glm::cross(Cam_Front, Cam_Up)) * cameraSpeed;
+        camera.ProcessKeyboard(LEFT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        Cam_Pos += glm::normalize(glm::cross(Cam_Front, Cam_Up)) * cameraSpeed;
+        camera.ProcessKeyboard(RIGHT, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
+        camera.ProcessKeyboard(DOWN, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
+        camera.ProcessKeyboard(UP, deltaTime);
 
+}
+
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+{
+    camera.ProcessMouseScroll(yoffset);
 }
