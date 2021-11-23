@@ -19,6 +19,27 @@
 #define WINDOW_WIDTH 1280.0f
 #define WINDOW_HEIGHT 720.0f
 
+float FOV = 45.0f;
+glm::vec3 Cam_Pos(0.0f, 0.0f, 3.0f);
+glm::vec3 Cam_Target(0.0f, 0.0f, 0.0f);
+glm::vec3 Cam_Direction = glm::normalize(Cam_Pos - Cam_Target);
+glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+glm::vec3 Cam_Right = glm::normalize(glm::cross(up, Cam_Direction));
+glm::vec3 Cam_Up = glm::vec3(0.0f,1.0f,0.0f);
+const float radius = 10.0f;
+glm::vec3 Cam_Front(0.0f, 0.0f, -1.0f);
+glm::vec3 direction;
+float yaw = 0.0f, pitch = 0.0f;
+float lastX = 400, lastY = 300;
+bool firstMouse = true;
+
+void mouse_callback(GLFWwindow* window, double xpos, double ypos);
+void processInput(GLFWwindow* window);
+
+
+//timing
+float deltaTime = 0.0f;
+float lastFrame = 0.0f;
 
 int main(void)
 {
@@ -29,8 +50,8 @@ int main(void)
         return -1;
 
     glfwWindowHint(GLFW_SAMPLES, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // To make MacOS happy; should not be needed
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
@@ -54,14 +75,62 @@ int main(void)
     std::cout << glGetString(GL_VERSION) << std::endl;
 
     glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    void mouse_callback(GLFWwindow*, double xpos, double ypos);
+    glfwSetCursorPosCallback(window, mouse_callback);
 
     {
-        /*vertex_data*/
+        /*Plane*/
         float positions[] = {
              -50.0f, -50.0f, 0.0f, 0.0f, // 0
              50.0f, -50.0f, 1.0f, 0.0f, // 1
              50.0f, 50.0f, 1.0f, 1.0f, // 2
              -50.0f, 50.0f, 0.0f, 1.0f  // 3
+        };
+
+        /*Box*/
+        float vertices[] = {
+            -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+             0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
+             0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+             0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+            -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+            -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+
+            -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+             0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+             0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+             0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+            -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
+            -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+
+            -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+            -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+            -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+            -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+             0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+             0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+             0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+             0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+             0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+             0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+             0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
+             0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+             0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+            -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+
+            -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+             0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+             0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+             0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+            -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
+            -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
         };
 
         /*index_datar*/
@@ -79,15 +148,14 @@ int main(void)
 
         /*make VertexBufferLayout*/
         VertexBufferLayout layout;
-        layout.Push<float>(2); //position
+        layout.Push<float>(2); //Plane_position
+        //layout.Push<float>(3); //Box_position
         layout.Push<float>(2); //uv
         va.addBuffer(vb, layout);
 
         /*make IndexBuffer*/
         IndexBuffer ib(indices, sizeof(indices));
 
-        glm::mat4 proj = glm::ortho(0.0f, WINDOW_WIDTH, 0.0f, WINDOW_HEIGHT, -1.0f, 1.0f);
-        glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, 0));
 
         /*make Shader*/
         Shader shader("res/shaders/practice1.shader");
@@ -110,15 +178,20 @@ int main(void)
         ImGui_ImplGlfwGL3_Init(window, true);
         ImGui::StyleColorsDark();
 
-        /*util valiables*/
+        /*util valiables*/        
+
         float r = 0.0f;
         float increment = 0.05f;
         glm::vec3 translationA(200, 200, 0);
         glm::vec3 translationB(400, 200, 0);
 
+        
+
         /* Loop until the user closes the window */
         while (!glfwWindowShouldClose(window))
         {
+            processInput(window);
+
             /* Render here */
             renderer.Clear();
 
@@ -126,8 +199,12 @@ int main(void)
 
             /*Draw Object*/
             {
+                glm::mat4 proj = glm::perspective(glm::radians(FOV), WINDOW_WIDTH / WINDOW_HEIGHT, 0.1f, 1000.0f);
+                float camX = sin(glfwGetTime()) * radius;
+                float camZ = cos(glfwGetTime()) * radius;
+                glm::mat4 view = glm::lookAt(Cam_Pos, Cam_Pos + Cam_Front, Cam_Up);
                 {
-                    glm::mat4 model = glm::translate(glm::mat4(1.0f), translationA);
+                    glm::mat4 model = glm::rotate(glm::mat4(1.0f), glm::radians(-55.0f), translationA);
                     glm::mat4 mvp = proj * view * model;
                     shader.SetUniformMat4f("u_MVP", mvp);
                     shader.Bind();
@@ -151,6 +228,8 @@ int main(void)
             r += increment;
 
             {
+                ImGui::Text("Camera");
+                ImGui::SliderFloat("FOV", &FOV, 0.0f,90.0f);
                 ImGui::SliderFloat3("Translation A", &translationA.x, 0.0f, WINDOW_WIDTH);
                 ImGui::SliderFloat3("Translation B", &translationB.x, 0.0f, WINDOW_WIDTH);
 
@@ -171,4 +250,67 @@ int main(void)
     ImGui::DestroyContext();
     glfwTerminate();
     return 0;
+}
+
+
+
+void mouse_callback(GLFWwindow* window, double xpos, double ypos)
+{
+    if (firstMouse)
+    {
+        lastX = xpos;
+        lastY = ypos;
+        firstMouse = false;
+    }
+
+    float xoffset = xpos - lastX;
+    float yoffset = lastY - ypos;
+    lastX = xpos;
+    lastY = ypos;
+
+    float sensitivity = 0.1f;
+    xoffset *= sensitivity;
+    yoffset *= sensitivity;
+
+    yaw += xoffset;
+    pitch += yoffset;
+
+    if (pitch > 89.0f)
+        pitch = 89.0f;
+    if (pitch < -89.0f)
+        pitch = -89.0f;
+
+    glm::vec3 direction;
+    direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+    direction.y = sin(glm::radians(pitch));
+    direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    Cam_Front = glm::normalize(direction);
+}
+
+void processInput(GLFWwindow* window)
+{
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, true);
+
+    float currentFrame = glfwGetTime();
+    deltaTime = currentFrame - lastFrame;
+    lastFrame = currentFrame;
+    float cameraSpeed; // adjust accordingly
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        cameraSpeed = 100.0f * deltaTime;
+    else
+        cameraSpeed = 10.0f * deltaTime;
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        Cam_Pos += cameraSpeed * Cam_Front;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        Cam_Pos -= cameraSpeed * Cam_Front;
+    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
+        Cam_Pos += cameraSpeed * Cam_Up;
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
+        Cam_Pos -= cameraSpeed * Cam_Up;
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        Cam_Pos -= glm::normalize(glm::cross(Cam_Front, Cam_Up)) * cameraSpeed;
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        Cam_Pos += glm::normalize(glm::cross(Cam_Front, Cam_Up)) * cameraSpeed;
+
 }
