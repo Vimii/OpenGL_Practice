@@ -183,7 +183,9 @@ static bool LoadObjAndConvert(float bmin[3], float bmax[3],
     std::vector<DrawObject>* drawObjects,
     std::vector<tinyobj::material_t>& materials,
     std::map<std::string, GLuint>& textures,
-    const char* filename) 
+    const char* filename,
+    VertexArray& va,
+    VertexBufferLayout& layout)
 {
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
@@ -262,22 +264,22 @@ static bool LoadObjAndConvert(float bmin[3], float bmax[3],
                     std::cout << "Loaded texture: " << texture_filename << ", w = " << w
                         << ", h = " << h << ", comp = " << comp << std::endl;
 
-                    glGenTextures(1, &texture_id);
-                    glBindTexture(GL_TEXTURE_2D, texture_id);
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                    GLCall(glGenTextures(1, &texture_id));
+                    GLCall(glBindTexture(GL_TEXTURE_2D, texture_id));
+                    GLCall(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+                    GLCall(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
                     if (comp == 3) {
-                        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB,
-                            GL_UNSIGNED_BYTE, image);
+                        GLCall(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB,
+                            GL_UNSIGNED_BYTE, image));
                     }
                     else if (comp == 4) {
-                        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA,
-                            GL_UNSIGNED_BYTE, image);
+                        GLCall(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA,
+                            GL_UNSIGNED_BYTE, image));
                     }
                     else {
                         assert(0);  // TODO
                     }
-                    glBindTexture(GL_TEXTURE_2D, 0);
+                    GLCall(glBindTexture(GL_TEXTURE_2D, 0));
                     stbi_image_free(image);
                     textures.insert(std::make_pair(mp->diffuse_texname, texture_id));
                 }
@@ -487,15 +489,22 @@ static bool LoadObjAndConvert(float bmin[3], float bmax[3],
             printf("shape[%d] material_id %d\n", int(s), int(o.material_id));
 
             if (buffer.size() > 0) {
-                glGenBuffers(1, &o.vb_id);
+                /*glGenBuffers(1, &o.vb_id);
                 glBindBuffer(GL_ARRAY_BUFFER, o.vb_id);
                 glBufferData(GL_ARRAY_BUFFER, buffer.size() * sizeof(float),
-                    &buffer.at(0), GL_STATIC_DRAW);
+                    &buffer.at(0), GL_STATIC_DRAW);*/
+
+                VertexBuffer vb(buffer.data(), buffer.size());
+                IndexBuffer ib(shapes[s].mesh.indices);
+                o.ibos.push_back(ib);
+
                 o.numTriangles = buffer.size() / (3 + 3 + 3 + 2) /
                     3;  // 3:vtx, 3:normal, 3:col, 2:texcoord
 
                 printf("shape[%d] # of triangles = %d\n", static_cast<int>(s),
                     o.numTriangles);
+
+                va.addBuffer(vb, layout);
             }
 
             drawObjects->push_back(o);
@@ -506,73 +515,11 @@ static bool LoadObjAndConvert(float bmin[3], float bmax[3],
     printf("bmax = %f, %f, %f\n", bmax[0], bmax[1], bmax[2]);
 
     return true;
-}
+}//LoadObjAndConvert
 
-static void Draw(const std::vector<DrawObject>& drawObjects,
-    std::vector<tinyobj::material_t>& materials,
-    std::map<std::string, GLuint>& textures) {
-    glPolygonMode(GL_FRONT, GL_FILL);
-    glPolygonMode(GL_BACK, GL_FILL);
 
-    glEnable(GL_POLYGON_OFFSET_FILL);
-    glPolygonOffset(1.0, 1.0);
-    GLsizei stride = (3 + 3 + 3 + 2) * sizeof(float);
-    for (size_t i = 0; i < drawObjects.size(); i++) {
-        DrawObject o = drawObjects[i];
-        if (o.vb_id < 1) {
-            continue;
-        }
+int main(void) {
 
-        glBindBuffer(GL_ARRAY_BUFFER, o.vb_id);
-        glEnableClientState(GL_VERTEX_ARRAY);
-        glEnableClientState(GL_NORMAL_ARRAY);
-        glEnableClientState(GL_COLOR_ARRAY);
-        glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-
-        glBindTexture(GL_TEXTURE_2D, 0);
-        if ((o.material_id < materials.size())) {
-            std::string diffuse_texname = materials[o.material_id].diffuse_texname;
-            if (textures.find(diffuse_texname) != textures.end()) {
-                glBindTexture(GL_TEXTURE_2D, textures[diffuse_texname]);
-            }
-        }
-        glVertexPointer(3, GL_FLOAT, stride, (const void*)0);
-        glNormalPointer(GL_FLOAT, stride, (const void*)(sizeof(float) * 3));
-        glColorPointer(3, GL_FLOAT, stride, (const void*)(sizeof(float) * 6));
-        glTexCoordPointer(2, GL_FLOAT, stride, (const void*)(sizeof(float) * 9));
-
-        glDrawArrays(GL_TRIANGLES, 0, 3 * o.numTriangles);
-        glBindTexture(GL_TEXTURE_2D, 0);
-    }
-
-    // draw wireframe
-    glDisable(GL_POLYGON_OFFSET_FILL);
-    glPolygonMode(GL_FRONT, GL_LINE);
-    glPolygonMode(GL_BACK, GL_LINE);
-
-    glColor3f(0.0f, 0.0f, 0.4f);
-    for (size_t i = 0; i < drawObjects.size(); i++) {
-        DrawObject o = drawObjects[i];
-        if (o.vb_id < 1) {
-            continue;
-        }
-
-        glBindBuffer(GL_ARRAY_BUFFER, o.vb_id);
-        glEnableClientState(GL_VERTEX_ARRAY);
-        glEnableClientState(GL_NORMAL_ARRAY);
-        glDisableClientState(GL_COLOR_ARRAY);
-        glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-        glVertexPointer(3, GL_FLOAT, stride, (const void*)0);
-        glNormalPointer(GL_FLOAT, stride, (const void*)(sizeof(float) * 3));
-        glColorPointer(3, GL_FLOAT, stride, (const void*)(sizeof(float) * 6));
-        glTexCoordPointer(2, GL_FLOAT, stride, (const void*)(sizeof(float) * 9));
-
-        glDrawArrays(GL_TRIANGLES, 0, 3 * o.numTriangles);
-    }
-}
-
-int main(void)
-{
     GLFWwindow* window;
 
     /* Initialize the library */
@@ -614,10 +561,23 @@ int main(void)
         std::string filepath = "models/cornell_box.obj";
 
         float bmin[3], bmax[3];
+
+
+        VertexArray va_Models;
+        VertexBufferLayout layout_Obj;
+        layout_Obj.Push<float>(3); //vtx
+        layout_Obj.Push<float>(3); //normal
+        layout_Obj.Push<float>(3); //color
+        layout_Obj.Push<float>(2); //uv        
+        
+        /*make Shader*/
+        Shader shader_Models("res/shaders/objShader.shader");
+        shader_Models.SetUniform4f("u_Color", 1.0f, 0.4f, 0.9f, 1.0f);
+
         std::vector<tinyobj::material_t> materials;
         std::map<std::string, GLuint> textures;
         if (false == LoadObjAndConvert(bmin, bmax, &gDrawObjects, materials, textures,
-            filepath.c_str())) {
+            filepath.c_str(),va_Models,layout_Obj)) {
             return -1;
         }
 
@@ -638,58 +598,17 @@ int main(void)
              -50.0f, 50.0f, 0.0f, 1.0f  // 3
         };
 
-        /*Box*/
-        float vertices[] = {
-            -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-             0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
-             0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-             0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-            -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-            -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-
-            -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-             0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-             0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-             0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-            -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
-            -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-
-            -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-            -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-            -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-            -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-
-             0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-             0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-             0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-             0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-             0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-             0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-
-            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-             0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
-             0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-             0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-            -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-
-            -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-             0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-             0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-             0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-            -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
-            -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
-        };
-
         /*index_datar*/
         unsigned int indices[] = {
             0,1,2,
             2,3,0
         };
 
-        GLCall(glEnable(GL_BLEND));
+        GLCall(glEnable(GL_BLEND));            
+        
+        glEnable(GL_DEPTH_TEST);
+
+
         GLCall(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
 
         /*make VertexArray*/
@@ -699,21 +618,19 @@ int main(void)
         /*make VertexBufferLayout*/
         VertexBufferLayout layout;
         layout.Push<float>(2); //Plane_position
-        //layout.Push<float>(3); //Box_position
         layout.Push<float>(2); //uv
         va.addBuffer(vb, layout);
 
         /*make IndexBuffer*/
         IndexBuffer ib(indices, sizeof(indices));
 
-
         /*make Shader*/
         Shader shader("res/shaders/practice1.shader");
-        shader.Bind();
 
-        Texture texture("res/textures/icon.png");
-        texture.Bind(0);
-        shader.SetUniform1i("u_Texture", 0);
+        //Texture texture("res/textures/icon.png");
+        //texture.Bind(0);
+        //shader.SetUniform1i("u_Texture", 0);
+        shader.SetUniform4f("u_Color", 1.0f,0.4f,0.9f,1.0f);
 
         /*UnBind all before main loop*/
         va.UnBind();
@@ -735,11 +652,10 @@ int main(void)
         glm::vec3 translationA(200, 200, 0);
         glm::vec3 translationB(400, 200, 0);
 
-        
 
         /* Loop until the user closes the window */
         while (!glfwWindowShouldClose(window))
-        {
+        {    
             float currentFrame = glfwGetTime();
             deltaTime = currentFrame - lastFrame;
             lastFrame = currentFrame;
@@ -760,19 +676,24 @@ int main(void)
                 {
                     glm::mat4 model = glm::rotate(glm::mat4(1.0f), glm::radians(-55.0f), translationA);
                     glm::mat4 mvp = proj * view * model;
+                    shader.Bind();
                     shader.SetUniformMat4f("u_MVP", mvp);
                     renderer.Draw(va, ib, shader);
+                    shader.UnBind();
                 }
-                {
-                    glm::mat4 model = glm::translate(glm::mat4(1.0f), translationB);
-                    glm::mat4 mvp = proj * view * model;
-                    shader.SetUniformMat4f("u_MVP", mvp);    
-                    va.UnBind();
-                    vb.Unbind();
-                    ib.Unbind();
-                    renderer.Draw(va, ib, shader);
-                    //renderer.Draw(gDrawObjects, materials, textures, shader);
-                }
+                //{
+                //    glm::mat4 model = glm::translate(glm::mat4(1.0f), translationB);
+                //    glm::mat4 mvp = proj * view * model;
+                //    shader.SetUniformMat4f("u_MVP", mvp);
+                //    renderer.Draw(va, ib, shader);
+                //}
+                glm::mat4 model = glm::translate(glm::mat4(1.0f), translationB);
+                glm::mat4 mvp = proj * view * model;
+                shader_Models.Bind();
+                shader_Models.SetUniformMat4f("u_MVP", mvp);
+                renderer.Draw(gDrawObjects, materials, textures,va_Models, shader_Models);
+                shader_Models.UnBind();
+                
             }
 
             /*Update valiables*/

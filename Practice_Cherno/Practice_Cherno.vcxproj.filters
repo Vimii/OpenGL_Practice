@@ -1396,6 +1396,9 @@
     <None Include="vendor\glm\gtx\wrap.inl">
       <Filter>ソース ファイル\vendor\glm</Filter>
     </None>
+    <None Include="res\shaders\objShader.shader">
+      <Filter>リソース ファイル\shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="res\textures\gold-dollar.png">

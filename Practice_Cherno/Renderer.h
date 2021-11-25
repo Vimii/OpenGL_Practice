@@ -13,6 +13,7 @@ typedef struct {
     GLuint vb_id;  // vertex buffer id
     int numTriangles;
     size_t material_id;
+    std::vector<IndexBuffer> ibos;
 } DrawObject;
 
 class Renderer
@@ -23,6 +24,7 @@ public:
     void Draw(const std::vector<DrawObject>& drawObjects,
         std::vector<tinyobj::material_t>& materials,
         std::map<std::string, GLuint>& textures,
+        const VertexArray& va,
         const Shader& shader);
 
 };
