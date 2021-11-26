@@ -13,7 +13,7 @@ void Renderer::Draw(const VertexArray& va, const IndexBuffer& ib, const Shader& 
     va.Bind();
     ib.Bind_vtx();
     GLCall(glDrawElements(GL_TRIANGLES, ib.GetCount(), GL_UNSIGNED_INT, nullptr));
-}    
+}
 
 void Renderer::Draw(const std::vector<DrawObject>& drawObjects,
     std::vector<tinyobj::material_t>& materials,

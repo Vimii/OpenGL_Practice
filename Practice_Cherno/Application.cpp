@@ -179,6 +179,10 @@ namespace  // Local utility functions
     }  // computeSmoothingNormals
 }  // namespace
 
+//test
+tinyobj::attrib_t attrib_Global;
+std::vector<tinyobj::shape_t> shapes_Global;
+
 static bool LoadObjAndConvert(float bmin[3], float bmax[3],
     std::vector<DrawObject>* drawObjects,
     std::vector<tinyobj::material_t>& materials,
@@ -187,8 +191,8 @@ static bool LoadObjAndConvert(float bmin[3], float bmax[3],
     VertexArray& va,
     VertexBufferLayout& layout)
 {
-    tinyobj::attrib_t attrib;
-    std::vector<tinyobj::shape_t> shapes;
+    tinyobj::attrib_t& attrib = attrib_Global;
+    std::vector<tinyobj::shape_t>& shapes = shapes_Global;
 
     std::string base_dir = GetBaseDir(filename);
     if (base_dir.empty()) {
@@ -589,20 +593,92 @@ int main(void) {
             maxExtent = 0.5f * (bmax[2] - bmin[2]);
         }
 
-        
-        /*Plane*/
-        float positions[] = {
-             -50.0f, -50.0f, 0.0f, 0.0f, // 0
-             50.0f, -50.0f, 1.0f, 0.0f, // 1
-             50.0f, 50.0f, 1.0f, 1.0f, // 2
-             -50.0f, 50.0f, 0.0f, 1.0f  // 3
-        };
+        //for (const auto& shape : shapes_Global)
+        //{
+        //    for(const auto& uo : shape.mesh.indices)
+        //        std::cout << uo.vertex_index << std::endl;
+        //} 
+        for (size_t s = 0; s < shapes_Global.size(); s++) {
+            std::cout << "shape["<< s << "]" << std::endl;
+            for (size_t f = 0; f < shapes_Global[s].mesh.indices.size() / 3; f++) {
+                std::cout << shapes_Global[s].mesh.indices[3 * f + 0].vertex_index << " " << shapes_Global[s].mesh.indices[3 * f + 1].vertex_index << " " << shapes_Global[s].mesh.indices[3 * f + 2].vertex_index << std::endl;
+            }
+        }
+        std::cout << std::endl;
+        for (int i = 0; i < attrib_Global.vertices.size(); i = i+3)
+        {
+            std::cout <<
+                "[" << i/3 << "]" <<
+                attrib_Global.vertices[i]
+                << " " <<
+                attrib_Global.vertices[i + 1]
+                << " " <<
+                attrib_Global.vertices[i + 2]
+                << " " <<
+                std::endl;
+        }
 
-        /*index_datar*/
-        unsigned int indices[] = {
-            0,1,2,
-            2,3,0
-        };
+
+
+
+        //float positions[] = 
+        //{
+        //    -50.0f, -50.0f, 50.f, 0.0f, 0.0f, // 0
+        //    50.0f, -50.0f, 50.f, 1.0f, 0.0f, // 1
+        //    50.0f, 50.0f, 50.f, 1.0f, 1.0f, // 2
+        //    -50.0f, 50.0f, 50.f,0.0f, 1.0f,  // 3
+        //    - 50.0f, -50.0f, -50.f, 0.0f, 0.0f, // 4
+        //    50.0f, -50.0f, -50.f, 1.0f, 0.0f, // 5
+        //    50.0f, 50.0f, -50.f, 1.0f, 1.0f, // 6
+        //    -50.0f, 50.0f, -50.f, 0.0f, 1.0f  // 7
+        //};
+
+        ///*index_datar*/
+        //unsigned int indices[] = {
+        //    0,1,2,
+        //    2,3,0,
+
+        //    1,5,6,
+        //    6,2,1,
+
+        //    5,4,7,
+        //    7,6,5,
+
+        //    4,0,3,
+        //    3,7,4,
+
+        //    3,2,6,
+        //    6,7,3,
+
+        //    4,5,1,
+        //    1,0,4,
+        //};
+
+        auto vertices = attrib_Global.vertices;
+
+        float *positions = vertices.data();
+
+        std::vector<unsigned int> vertex_indices;
+
+        for (size_t s = 0; s < shapes_Global.size(); s++) {
+            std::cout << "shape[" << s << "]" << std::endl;
+            for (size_t f = 0; f < shapes_Global[s].mesh.indices.size(); f++) {
+                vertex_indices.push_back(shapes_Global[s].mesh.indices[f].vertex_index);
+            }
+        }
+
+        unsigned int* indices = vertex_indices.data();
+
+        /*make VertexArray*/
+        VertexArray va;
+        VertexBuffer vb(positions, vertices.size() * sizeof(float));
+
+        /*make VertexBufferLayout*/
+        VertexBufferLayout layout_test;
+        layout_test.Push<float>(3); //position
+        va.addBuffer(vb, layout_test);
+
+        IndexBuffer ib(indices, vertex_indices.size());
 
         GLCall(glEnable(GL_BLEND));            
         
@@ -611,25 +687,39 @@ int main(void) {
 
         GLCall(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
 
-        /*make VertexArray*/
-        VertexArray va;
-        VertexBuffer vb(positions, sizeof(positions));
 
-        /*make VertexBufferLayout*/
-        VertexBufferLayout layout;
-        layout.Push<float>(2); //Plane_position
-        layout.Push<float>(2); //uv
-        va.addBuffer(vb, layout);
+        /*Plane*/
+        //float positions[] = {
+        //     -50.0f, -50.0f, 0.0f, 0.0f, // 0
+        //     50.0f, -50.0f, 1.0f, 0.0f, // 1
+        //     50.0f, 50.0f, 1.0f, 1.0f, // 2
+        //     -50.0f, 50.0f, 0.0f, 1.0f  // 3
+        //};
+
+        ///*index_datar*/
+        //unsigned int indices[] = {
+        //    0,1,2,
+        //    2,3,0
+        //};
+        ///*make VertexArray*/
+        //VertexArray va;
+        //VertexBuffer vb(positions, sizeof(positions));
+
+        ///*make VertexBufferLayout*/
+        //VertexBufferLayout layout;
+        //layout.Push<float>(2); //Plane_position
+        //layout.Push<float>(2); //uv
+        //va.addBuffer(vb, layout);
 
         /*make IndexBuffer*/
-        IndexBuffer ib(indices, sizeof(indices));
+        //IndexBuffer ib(indices, sizeof(indices));
 
         /*make Shader*/
         Shader shader("res/shaders/practice1.shader");
 
-        //Texture texture("res/textures/icon.png");
-        //texture.Bind(0);
-        //shader.SetUniform1i("u_Texture", 0);
+        Texture texture("res/textures/icon.png");
+        texture.Bind(0);
+        shader.SetUniform1i("u_Texture", 0);
         shader.SetUniform4f("u_Color", 1.0f,0.4f,0.9f,1.0f);
 
         /*UnBind all before main loop*/
@@ -684,6 +774,7 @@ int main(void) {
                 //{
                 //    glm::mat4 model = glm::translate(glm::mat4(1.0f), translationB);
                 //    glm::mat4 mvp = proj * view * model;
+                //    shader.Bind();
                 //    shader.SetUniformMat4f("u_MVP", mvp);
                 //    renderer.Draw(va, ib, shader);
                 //}
