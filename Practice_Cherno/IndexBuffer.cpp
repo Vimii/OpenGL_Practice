@@ -25,7 +25,7 @@ IndexBuffer::IndexBuffer(std::vector<tinyobj::index_t> indices)
 
     GLCall(glGenBuffers(1, &m_RendererID_vtx));
     GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_RendererID_vtx));
-    GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(int) * 3, data_vtx.data(), GL_STATIC_DRAW));
+    GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(int), data_vtx.data(), GL_STATIC_DRAW));
 
     std::vector<int> data_nrm;
 
@@ -35,7 +35,7 @@ IndexBuffer::IndexBuffer(std::vector<tinyobj::index_t> indices)
 
     GLCall(glGenBuffers(1, &m_RendererID_nrm));
     GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_RendererID_nrm));
-    GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(int) * 3, data_nrm.data(), GL_STATIC_DRAW));
+    GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(int), data_nrm.data(), GL_STATIC_DRAW));
 
     std::vector<int> data_uv;
 
@@ -45,7 +45,7 @@ IndexBuffer::IndexBuffer(std::vector<tinyobj::index_t> indices)
 
     GLCall(glGenBuffers(1, &m_RendererID_uv));
     GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_RendererID_uv));
-    GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(int) * 3, data_uv.data(), GL_STATIC_DRAW));
+    GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(int), data_uv.data(), GL_STATIC_DRAW));
 }
 
 IndexBuffer::~IndexBuffer()

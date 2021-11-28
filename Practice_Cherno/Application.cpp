@@ -207,7 +207,7 @@ static bool LoadObjAndConvert(float bmin[3], float bmax[3],
     std::string warn;
     std::string err;
     bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filename,
-        base_dir.c_str());
+        base_dir.c_str(),true);
     if (!warn.empty()) {
         std::cout << "WARN: " << warn << std::endl;
     }
@@ -294,225 +294,213 @@ static bool LoadObjAndConvert(float bmin[3], float bmax[3],
     bmax[0] = bmax[1] = bmax[2] = -std::numeric_limits<float>::max();
 
     {
-        for (size_t s = 0; s < shapes.size(); s++) {
-            DrawObject o;
-            std::vector<float> buffer;  // pos(3float), normal(3float), color(3float)
+        std::vector<float> buffer;            
+        std::vector<unsigned int> ibuffer;
+        int vbnum = 0;
+        for (int i = 0; i < attrib.vertices.size(); i = i + 3)
+        {
+            vbnum++;
+        }
 
-            // Check for smoothing group and compute smoothing normals
-            std::map<int, vec3> smoothVertexNormals;
-            if (hasSmoothingGroup(shapes[s]) > 0) {
-                std::cout << "Compute smoothingNormal for shape [" << s << "]" << std::endl;
-                computeSmoothingNormals(attrib, shapes[s], smoothVertexNormals);
-            }
+        bool There_is_normal, There_is_texcoord;
 
-            for (size_t f = 0; f < shapes[s].mesh.indices.size() / 3; f++) {
-                tinyobj::index_t idx0 = shapes[s].mesh.indices[3 * f + 0];
-                tinyobj::index_t idx1 = shapes[s].mesh.indices[3 * f + 1];
-                tinyobj::index_t idx2 = shapes[s].mesh.indices[3 * f + 2];
+        if (attrib.normals.size() > 0) There_is_normal = true; 
+        else {
+            There_is_normal = false;
+            std::cout << "[MODEL_WARNIG] no normals data" << std::endl;
+        }
+        if (attrib.texcoords.size() > 0) There_is_texcoord = true; 
+        else {
+            There_is_texcoord = false;
+            std::cout << "[MODEL_WARNIG] no texcoord data" << std::endl;
+        }
 
-                int current_material_id = shapes[s].mesh.material_ids[f];
-
-                if ((current_material_id < 0) ||
-                    (current_material_id >= static_cast<int>(materials.size()))) {
-                    // Invaid material ID. Use default material.
-                    current_material_id =
-                        materials.size() -
-                        1;  // Default material is added to the last item in `materials`.
-                }
-                // if (current_material_id >= materials.size()) {
-                //    std::cerr << "Invalid material index: " << current_material_id <<
-                //    std::endl;
-                //}
-                //
-                float diffuse[3];
-                for (size_t i = 0; i < 3; i++) {
-                    diffuse[i] = materials[current_material_id].diffuse[i];
-                }
-                float tc[3][2];
-                if (attrib.texcoords.size() > 0) {
-                    if ((idx0.texcoord_index < 0) || (idx1.texcoord_index < 0) ||
-                        (idx2.texcoord_index < 0)) {
-                        // face does not contain valid uv index.
-                        tc[0][0] = 0.0f;
-                        tc[0][1] = 0.0f;
-                        tc[1][0] = 0.0f;
-                        tc[1][1] = 0.0f;
-                        tc[2][0] = 0.0f;
-                        tc[2][1] = 0.0f;
-                    }
-                    else {
-                        assert(attrib.texcoords.size() >
-                            size_t(2 * idx0.texcoord_index + 1));
-                        assert(attrib.texcoords.size() >
-                            size_t(2 * idx1.texcoord_index + 1));
-                        assert(attrib.texcoords.size() >
-                            size_t(2 * idx2.texcoord_index + 1));
-
-                        // Flip Y coord.
-                        tc[0][0] = attrib.texcoords[2 * idx0.texcoord_index];
-                        tc[0][1] = 1.0f - attrib.texcoords[2 * idx0.texcoord_index + 1];
-                        tc[1][0] = attrib.texcoords[2 * idx1.texcoord_index];
-                        tc[1][1] = 1.0f - attrib.texcoords[2 * idx1.texcoord_index + 1];
-                        tc[2][0] = attrib.texcoords[2 * idx2.texcoord_index];
-                        tc[2][1] = 1.0f - attrib.texcoords[2 * idx2.texcoord_index + 1];
-                    }
-                }
-                else {
-                    tc[0][0] = 0.0f;
-                    tc[0][1] = 0.0f;
-                    tc[1][0] = 0.0f;
-                    tc[1][1] = 0.0f;
-                    tc[2][0] = 0.0f;
-                    tc[2][1] = 0.0f;
-                }
-
-                float v[3][3];
-                for (int k = 0; k < 3; k++) {
-                    int f0 = idx0.vertex_index;
-                    int f1 = idx1.vertex_index;
-                    int f2 = idx2.vertex_index;
-                    assert(f0 >= 0);
-                    assert(f1 >= 0);
-                    assert(f2 >= 0);
-
-                    v[0][k] = attrib.vertices[3 * f0 + k];
-                    v[1][k] = attrib.vertices[3 * f1 + k];
-                    v[2][k] = attrib.vertices[3 * f2 + k];
-                    bmin[k] = std::min(v[0][k], bmin[k]);
-                    bmin[k] = std::min(v[1][k], bmin[k]);
-                    bmin[k] = std::min(v[2][k], bmin[k]);
-                    bmax[k] = std::max(v[0][k], bmax[k]);
-                    bmax[k] = std::max(v[1][k], bmax[k]);
-                    bmax[k] = std::max(v[2][k], bmax[k]);
-                }
-
-                float n[3][3];
-                {
-                    bool invalid_normal_index = false;
-                    if (attrib.normals.size() > 0) {
-                        int nf0 = idx0.normal_index;
-                        int nf1 = idx1.normal_index;
-                        int nf2 = idx2.normal_index;
-
-                        if ((nf0 < 0) || (nf1 < 0) || (nf2 < 0)) {
-                            // normal index is missing from this face.
-                            invalid_normal_index = true;
-                        }
-                        else {
-                            for (int k = 0; k < 3; k++) {
-                                assert(size_t(3 * nf0 + k) < attrib.normals.size());
-                                assert(size_t(3 * nf1 + k) < attrib.normals.size());
-                                assert(size_t(3 * nf2 + k) < attrib.normals.size());
-                                n[0][k] = attrib.normals[3 * nf0 + k];
-                                n[1][k] = attrib.normals[3 * nf1 + k];
-                                n[2][k] = attrib.normals[3 * nf2 + k];
-                            }
-                        }
-                    }
-                    else {
-                        invalid_normal_index = true;
-                    }
-
-                    if (invalid_normal_index && !smoothVertexNormals.empty()) {
-                        // Use smoothing normals
-                        int f0 = idx0.vertex_index;
-                        int f1 = idx1.vertex_index;
-                        int f2 = idx2.vertex_index;
-
-                        if (f0 >= 0 && f1 >= 0 && f2 >= 0) {
-                            n[0][0] = smoothVertexNormals[f0].v[0];
-                            n[0][1] = smoothVertexNormals[f0].v[1];
-                            n[0][2] = smoothVertexNormals[f0].v[2];
-
-                            n[1][0] = smoothVertexNormals[f1].v[0];
-                            n[1][1] = smoothVertexNormals[f1].v[1];
-                            n[1][2] = smoothVertexNormals[f1].v[2];
-
-                            n[2][0] = smoothVertexNormals[f2].v[0];
-                            n[2][1] = smoothVertexNormals[f2].v[1];
-                            n[2][2] = smoothVertexNormals[f2].v[2];
-
-                            invalid_normal_index = false;
-                        }
-                    }
-
-                    if (invalid_normal_index) {
-                        // compute geometric normal
-                        CalcNormal(n[0], v[0], v[1], v[2]);
-                        n[1][0] = n[0][0];
-                        n[1][1] = n[0][1];
-                        n[1][2] = n[0][2];
-                        n[2][0] = n[0][0];
-                        n[2][1] = n[0][1];
-                        n[2][2] = n[0][2];
-                    }
-                }
-
-                for (int k = 0; k < 3; k++) {
-                    buffer.push_back(v[k][0]);
-                    buffer.push_back(v[k][1]);
-                    buffer.push_back(v[k][2]);
-                    buffer.push_back(n[k][0]);
-                    buffer.push_back(n[k][1]);
-                    buffer.push_back(n[k][2]);
-                    // Combine normal and diffuse to get color.
-                    float normal_factor = 0.2;
-                    float diffuse_factor = 1 - normal_factor;
-                    float c[3] = { n[k][0] * normal_factor + diffuse[0] * diffuse_factor,
-                                  n[k][1] * normal_factor + diffuse[1] * diffuse_factor,
-                                  n[k][2] * normal_factor + diffuse[2] * diffuse_factor };
-                    float len2 = c[0] * c[0] + c[1] * c[1] + c[2] * c[2];
-                    if (len2 > 0.0f) {
-                        float len = sqrtf(len2);
-
-                        c[0] /= len;
-                        c[1] /= len;
-                        c[2] /= len;
-                    }
-                    buffer.push_back(c[0] * 0.5 + 0.5);
-                    buffer.push_back(c[1] * 0.5 + 0.5);
-                    buffer.push_back(c[2] * 0.5 + 0.5);
-
-                    buffer.push_back(tc[k][0]);
-                    buffer.push_back(tc[k][1]);
-                }
-            }
-
-            o.vb_id = 0;
-            o.numTriangles = 0;
-
-            // OpenGL viewer does not support texturing with per-face material.
-            if (shapes[s].mesh.material_ids.size() > 0 &&
-                shapes[s].mesh.material_ids.size() > s) {
-                o.material_id = shapes[s].mesh.material_ids[0];  // use the material ID
-                                                                 // of the first face.
+        for (int i = 0; i < vbnum; i++)
+        {
+            float normal[3];
+            if (There_is_normal) {
+                attrib.normals[3 * i + 0];
+                attrib.normals[3 * i + 1];
+                attrib.normals[3 * i + 2];
             }
             else {
-                o.material_id = materials.size() - 1;  // = ID for default material.
+                normal[0] = 0.0f;
+                normal[1] = 0.0f;
+                normal[2] = 0.0f;
+            }            
+            
+            float texcoord[2];
+            if (There_is_texcoord) {
+                attrib.texcoords[3 * i + 0];
+                attrib.texcoords[3 * i + 1];
             }
-            printf("shape[%d] material_id %d\n", int(s), int(o.material_id));
+            else {
+                texcoord[0] = 0.0f;
+                texcoord[1] = 0.0f;
+            }
 
+            bmin[0] = std::min(bmin[0], attrib.vertices[3 * i + 0]);
+            bmin[1] = std::min(bmin[1], attrib.vertices[3 * i + 1]);
+            bmin[2] = std::min(bmin[2], attrib.vertices[3 * i + 2]);
+            bmax[0] = std::max(bmax[0], attrib.vertices[3 * i + 0]);
+            bmax[1] = std::max(bmax[1], attrib.vertices[3 * i + 1]);
+            bmax[2] = std::max(bmax[2], attrib.vertices[3 * i + 2]);
+
+            buffer.push_back(attrib.vertices[3 * i + 0]);
+            buffer.push_back(attrib.vertices[3 * i + 1]);
+            buffer.push_back(attrib.vertices[3 * i + 2]);
+            buffer.push_back(normal[0]);
+            buffer.push_back(normal[1]);
+            buffer.push_back(normal[2]);
+            buffer.push_back(attrib.colors[3 * i + 0]);
+            buffer.push_back(attrib.colors[3 * i + 1]);
+            buffer.push_back(attrib.colors[3 * i + 2]);
+            buffer.push_back(texcoord[0]);
+            buffer.push_back(texcoord[1]);
+
+
+
+            //std::cout <<
+            //    "uo[" << i << "]" <<
+            //    attrib.colors[3 * i + 0]
+            //    << " " <<
+            //    attrib.colors[3 * i + 1]
+            //    << " " <<
+            //    attrib.colors[3 * i + 2]
+            //    << " " <<
+            //    std::endl;
+
+
+            }
+
+        for (size_t s = 0; s < shapes.size(); s++) {
+            DrawObject o;
+            for (int i = 0; i < shapes[s].mesh.indices.size() / 3; i++) {
+                ibuffer.push_back(shapes[s].mesh.indices[3 * i + 0].vertex_index);
+                ibuffer.push_back(shapes[s].mesh.indices[3 * i + 1].vertex_index);
+                ibuffer.push_back(shapes[s].mesh.indices[3 * i + 2].vertex_index);
+            }
             if (buffer.size() > 0) {
-                /*glGenBuffers(1, &o.vb_id);
-                glBindBuffer(GL_ARRAY_BUFFER, o.vb_id);
-                glBufferData(GL_ARRAY_BUFFER, buffer.size() * sizeof(float),
-                    &buffer.at(0), GL_STATIC_DRAW);*/
+                GLCall(glGenBuffers(1, &o.vb_id));
+                GLCall(glBindBuffer(GL_ARRAY_BUFFER, o.vb_id));
+                GLCall(glBufferData(GL_ARRAY_BUFFER, buffer.size() * sizeof(float),
+                    &buffer.at(0), GL_STATIC_DRAW));
 
-                VertexBuffer vb(buffer.data(), buffer.size());
-                IndexBuffer ib(shapes[s].mesh.indices);
-                o.ibos.push_back(ib);
+                GLCall(glGenBuffers(1, &o.ib_id));
+                GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, o.ib_id));
+                GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, ibuffer.size() * sizeof(unsigned int), &ibuffer.at(0), GL_STATIC_DRAW));
+
+                va.Bind();
+                GLCall(glBindBuffer(GL_ARRAY_BUFFER, o.vb_id));
+                const auto& elements = layout.GetElements();
+                unsigned int offset = 0;
+                for (unsigned int i = 0; i < elements.size(); i++)
+                {
+                    const auto& element = elements[i];
+                    GLCall(glEnableVertexAttribArray(i));
+                    GLCall(glVertexAttribPointer(i, element.count, element.type,
+                        element.normalized, layout.GetStride(), (const void*)offset));
+                    offset += element.count * VertexBufferElement::GetSizeOfType(element.type);
+                }
 
                 o.numTriangles = buffer.size() / (3 + 3 + 3 + 2) /
                     3;  // 3:vtx, 3:normal, 3:col, 2:texcoord
 
                 printf("shape[%d] # of triangles = %d\n", static_cast<int>(s),
                     o.numTriangles);
-
-                va.addBuffer(vb, layout);
             }
-
             drawObjects->push_back(o);
         }
+
+        //for (size_t s = 0; s < shapes.size(); s++) {
+        //    DrawObject o;
+        //    //std::vector<float> buffer;  // pos(3float), normal(3float), color(3float)
+
+
+        //    // Check for smoothing group and compute smoothing normals
+        //    std::map<int, vec3> smoothVertexNormals;
+        //    if (hasSmoothingGroup(shapes[s]) > 0) {
+        //        std::cout << "Compute smoothingNormal for shape [" << s << "]" << std::endl;
+        //        computeSmoothingNormals(attrib, shapes[s], smoothVertexNormals);
+        //    }
+
+        //    for (size_t f = 0; f < shapes[s].mesh.indices.size() / 3; f++) {
+        //        tinyobj::index_t idx0 = shapes[s].mesh.indices[3 * f + 0];
+        //        tinyobj::index_t idx1 = shapes[s].mesh.indices[3 * f + 1];
+        //        tinyobj::index_t idx2 = shapes[s].mesh.indices[3 * f + 2];
+
+        //        //ibuffer.push_back(idx0.vertex_index);
+        //        //ibuffer.push_back(idx1.vertex_index);
+        //        //ibuffer.push_back(idx2.vertex_index);
+
+        //        int current_material_id = shapes[s].mesh.material_ids[f];
+
+        //        if ((current_material_id < 0) ||
+        //            (current_material_id >= static_cast<int>(materials.size()))) {
+        //            // Invaid material ID. Use default material.
+        //            current_material_id =
+        //                materials.size() -
+        //                1;  // Default material is added to the last item in `materials`.
+        //        }
+        //         if (current_material_id >= materials.size()) {
+        //            std::cerr << "Invalid material index: " << current_material_id <<
+        //            std::endl;
+        //        }
+        //        
+        //        float diffuse[3];
+        //        for (size_t i = 0; i < 3; i++) {
+        //            diffuse[i] = materials[current_material_id].diffuse[i];
+        //        }
+
+        //    }
+
+
+        //    o.vb_id = 0;
+        //    o.numTriangles = 0;
+
+        //    // OpenGL viewer does not support texturing with per-face material.
+        //    if (shapes[s].mesh.material_ids.size() > 0 &&
+        //        shapes[s].mesh.material_ids.size() > s) {
+        //        o.material_id = shapes[s].mesh.material_ids[0];  // use the material ID
+        //                                                         // of the first face.
+        //    }
+        //    else {
+        //        o.material_id = materials.size() - 1;  // = ID for default material.
+        //    }
+        //    printf("shape[%d] material_id %d\n", int(s), int(o.material_id));
+
+        //    if (buffer.size() > 0) {
+        //        GLCall(glGenBuffers(1, &o.vb_id));
+        //        GLCall(glBindBuffer(GL_ARRAY_BUFFER, o.vb_id));
+        //        GLCall(glBufferData(GL_ARRAY_BUFFER, buffer.size() * sizeof(float),
+        //            &buffer.at(0), GL_STATIC_DRAW));
+
+        //        GLCall(glGenBuffers(1, &o.ib_id));
+        //        GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, o.ib_id));
+        //        GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, ibuffer.size() * sizeof(unsigned int), &ibuffer.at(0), GL_STATIC_DRAW));
+
+        //        va.Bind();
+        //        GLCall(glBindBuffer(GL_ARRAY_BUFFER, o.vb_id));
+        //        const auto& elements = layout.GetElements();
+        //        unsigned int offset = 0;
+        //        for (unsigned int i = 0; i < elements.size(); i++)
+        //        {
+        //            const auto& element = elements[i];
+        //            GLCall(glEnableVertexAttribArray(i));
+        //            GLCall(glVertexAttribPointer(i, element.count, element.type,
+        //                element.normalized, layout.GetStride(), (const void*)offset));
+        //            offset += element.count * VertexBufferElement::GetSizeOfType(element.type);
+        //        }
+
+        //        o.numTriangles = buffer.size() / (3 + 3 + 3 + 2) /
+        //            3;  // 3:vtx, 3:normal, 3:col, 2:texcoord
+
+        //        printf("shape[%d] # of triangles = %d\n", static_cast<int>(s),
+        //            o.numTriangles);
+        //    }
+
+        //    drawObjects->push_back(o);
+        //}
     }
 
     printf("bmin = %f, %f, %f\n", bmin[0], bmin[1], bmin[2]);
@@ -561,27 +549,34 @@ int main(void) {
     glfwSetCursorPosCallback(window, mouse_callback);
 
     {
+        /*GL_Settings*/
+        GLCall(glEnable(GL_BLEND));
+        glEnable(GL_DEPTH_TEST);
+        GLCall(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
+        
         /*ObjModel*/
-        std::string filepath = "models/cornell_box.obj";
+        std::string filepath = "models/suzanne.obj";
 
         float bmin[3], bmax[3];
 
 
-        VertexArray va_Models;
+        VertexArray vao_Models;
+
         VertexBufferLayout layout_Obj;
         layout_Obj.Push<float>(3); //vtx
         layout_Obj.Push<float>(3); //normal
         layout_Obj.Push<float>(3); //color
-        layout_Obj.Push<float>(2); //uv        
-        
-        /*make Shader*/
+        layout_Obj.Push<float>(2); //uv
+
         Shader shader_Models("res/shaders/objShader.shader");
+        shader_Models.Bind();
         shader_Models.SetUniform4f("u_Color", 1.0f, 0.4f, 0.9f, 1.0f);
+        shader_Models.UnBind();
 
         std::vector<tinyobj::material_t> materials;
         std::map<std::string, GLuint> textures;
         if (false == LoadObjAndConvert(bmin, bmax, &gDrawObjects, materials, textures,
-            filepath.c_str(),va_Models,layout_Obj)) {
+            filepath.c_str(), vao_Models,layout_Obj)) {
             return -1;
         }
 
@@ -593,100 +588,40 @@ int main(void) {
             maxExtent = 0.5f * (bmax[2] - bmin[2]);
         }
 
-        //for (const auto& shape : shapes_Global)
-        //{
-        //    for(const auto& uo : shape.mesh.indices)
-        //        std::cout << uo.vertex_index << std::endl;
-        //} 
-        for (size_t s = 0; s < shapes_Global.size(); s++) {
-            std::cout << "shape["<< s << "]" << std::endl;
-            for (size_t f = 0; f < shapes_Global[s].mesh.indices.size() / 3; f++) {
-                std::cout << shapes_Global[s].mesh.indices[3 * f + 0].vertex_index << " " << shapes_Global[s].mesh.indices[3 * f + 1].vertex_index << " " << shapes_Global[s].mesh.indices[3 * f + 2].vertex_index << std::endl;
-            }
-        }
-        std::cout << std::endl;
-        for (int i = 0; i < attrib_Global.vertices.size(); i = i+3)
+
+        /*Box*/
+        float positions[] =
         {
-            std::cout <<
-                "[" << i/3 << "]" <<
-                attrib_Global.vertices[i]
-                << " " <<
-                attrib_Global.vertices[i + 1]
-                << " " <<
-                attrib_Global.vertices[i + 2]
-                << " " <<
-                std::endl;
-        }
+            -50.0f, -50.0f, 50.f, 0.0f, 0.0f, // 0
+            50.0f, -50.0f, 50.f, 1.0f, 0.0f, // 1
+            50.0f, 50.0f, 50.f, 1.0f, 1.0f, // 2
+            -50.0f, 50.0f, 50.f,0.0f, 1.0f,  // 3
+            -50.0f, -50.0f, -50.f, 0.0f, 0.0f, // 4
+            50.0f, -50.0f, -50.f, 1.0f, 0.0f, // 5
+            50.0f, 50.0f, -50.f, 1.0f, 1.0f, // 6
+            -50.0f, 50.0f, -50.f, 0.0f, 1.0f  // 7
+        };
 
+        /*index_datar*/
+        unsigned int indices[] = {
+            0,1,2,
+            2,3,0,
 
+            1,5,6,
+            6,2,1,
 
+            5,4,7,
+            7,6,5,
 
-        //float positions[] = 
-        //{
-        //    -50.0f, -50.0f, 50.f, 0.0f, 0.0f, // 0
-        //    50.0f, -50.0f, 50.f, 1.0f, 0.0f, // 1
-        //    50.0f, 50.0f, 50.f, 1.0f, 1.0f, // 2
-        //    -50.0f, 50.0f, 50.f,0.0f, 1.0f,  // 3
-        //    - 50.0f, -50.0f, -50.f, 0.0f, 0.0f, // 4
-        //    50.0f, -50.0f, -50.f, 1.0f, 0.0f, // 5
-        //    50.0f, 50.0f, -50.f, 1.0f, 1.0f, // 6
-        //    -50.0f, 50.0f, -50.f, 0.0f, 1.0f  // 7
-        //};
+            4,0,3,
+            3,7,4,
 
-        ///*index_datar*/
-        //unsigned int indices[] = {
-        //    0,1,2,
-        //    2,3,0,
+            3,2,6,
+            6,7,3,
 
-        //    1,5,6,
-        //    6,2,1,
-
-        //    5,4,7,
-        //    7,6,5,
-
-        //    4,0,3,
-        //    3,7,4,
-
-        //    3,2,6,
-        //    6,7,3,
-
-        //    4,5,1,
-        //    1,0,4,
-        //};
-
-        auto vertices = attrib_Global.vertices;
-
-        float *positions = vertices.data();
-
-        std::vector<unsigned int> vertex_indices;
-
-        for (size_t s = 0; s < shapes_Global.size(); s++) {
-            std::cout << "shape[" << s << "]" << std::endl;
-            for (size_t f = 0; f < shapes_Global[s].mesh.indices.size(); f++) {
-                vertex_indices.push_back(shapes_Global[s].mesh.indices[f].vertex_index);
-            }
-        }
-
-        unsigned int* indices = vertex_indices.data();
-
-        /*make VertexArray*/
-        VertexArray va;
-        VertexBuffer vb(positions, vertices.size() * sizeof(float));
-
-        /*make VertexBufferLayout*/
-        VertexBufferLayout layout_test;
-        layout_test.Push<float>(3); //position
-        va.addBuffer(vb, layout_test);
-
-        IndexBuffer ib(indices, vertex_indices.size());
-
-        GLCall(glEnable(GL_BLEND));            
-        
-        glEnable(GL_DEPTH_TEST);
-
-
-        GLCall(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
-
+            4,5,1,
+            1,0,4,
+        };
 
         /*Plane*/
         //float positions[] = {
@@ -701,18 +636,21 @@ int main(void) {
         //    0,1,2,
         //    2,3,0
         //};
-        ///*make VertexArray*/
-        //VertexArray va;
-        //VertexBuffer vb(positions, sizeof(positions));
 
-        ///*make VertexBufferLayout*/
-        //VertexBufferLayout layout;
+
+        /*make VertexArray*/
+        VertexArray va;
+        VertexBuffer vb(positions, sizeof(positions));
+
+        /*make VertexBufferLayout*/
+        VertexBufferLayout layout;
         //layout.Push<float>(2); //Plane_position
-        //layout.Push<float>(2); //uv
-        //va.addBuffer(vb, layout);
+        layout.Push<float>(3); //Box_position
+        layout.Push<float>(2); //uv
+        va.addBuffer(vb, layout);
 
         /*make IndexBuffer*/
-        //IndexBuffer ib(indices, sizeof(indices));
+        IndexBuffer ib(indices, sizeof(indices));
 
         /*make Shader*/
         Shader shader("res/shaders/practice1.shader");
@@ -724,7 +662,7 @@ int main(void) {
 
         /*UnBind all before main loop*/
         va.UnBind();
-        vb.Unbind();
+        //vb.Unbind();
         ib.Unbind();
         shader.UnBind();
 
@@ -766,10 +704,10 @@ int main(void) {
                 {
                     glm::mat4 model = glm::rotate(glm::mat4(1.0f), glm::radians(-55.0f), translationA);
                     glm::mat4 mvp = proj * view * model;
+                    texture.Bind();
                     shader.Bind();
                     shader.SetUniformMat4f("u_MVP", mvp);
                     renderer.Draw(va, ib, shader);
-                    shader.UnBind();
                 }
                 //{
                 //    glm::mat4 model = glm::translate(glm::mat4(1.0f), translationB);
@@ -779,10 +717,11 @@ int main(void) {
                 //    renderer.Draw(va, ib, shader);
                 //}
                 glm::mat4 model = glm::translate(glm::mat4(1.0f), translationB);
+                model = glm::scale(model, glm::vec3(100, 100, 100));
                 glm::mat4 mvp = proj * view * model;
                 shader_Models.Bind();
                 shader_Models.SetUniformMat4f("u_MVP", mvp);
-                renderer.Draw(gDrawObjects, materials, textures,va_Models, shader_Models);
+                renderer.DrawObj(gDrawObjects, materials, textures, vao_Models, shader_Models);
                 shader_Models.UnBind();
                 
             }
