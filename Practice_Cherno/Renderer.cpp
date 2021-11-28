@@ -44,7 +44,7 @@ void Renderer::DrawObj(const std::vector<DrawObject>& drawObjects,
         shader.Bind();
         va.Bind();
         GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, o.ib_id));
-        GLCall(glDrawElements(GL_TRIANGLES, o.numTriangles, GL_UNSIGNED_INT, nullptr));
+        GLCall(glDrawElements(GL_TRIANGLES, o.numTriangles * 3, GL_UNSIGNED_INT, nullptr));
         
     }
 }
