@@ -20,13 +20,13 @@ void Renderer::DrawObj(const std::vector<DrawObject>& drawObjects,
     std::map<std::string, GLuint>& textures,
     Shader& shader)
 {
+    glEnable(GL_DEPTH_TEST);
     glPolygonMode(GL_FRONT, GL_FILL);
     glPolygonMode(GL_BACK, GL_FILL);
 
     glEnable(GL_POLYGON_OFFSET_FILL);
     glPolygonOffset(1.0, 1.0);
     GLsizei stride = (3 + 3 + 3 + 2) * sizeof(float);
-    int texnum = 0;
     for (size_t i = 0; i < drawObjects.size(); i++) {
         DrawObject o = drawObjects[i];
         if (o.vb_id < 1) {
@@ -42,13 +42,13 @@ void Renderer::DrawObj(const std::vector<DrawObject>& drawObjects,
             if (textures.find(diffuse_texname) != textures.end()) {
                 GLCall(glActiveTexture(GL_TEXTURE0));
                 GLCall(glBindTexture(GL_TEXTURE_2D, textures[diffuse_texname]));
-                std::string tex = "u_Texture" + std::to_string(textures[diffuse_texname]);
                 shader.SetUniform1i("u_Texture" , 0);
-                texnum++;
+                shader.SetUniform1i("bool_Tex", 1);
             }
         }
 
         GLCall(glDrawElements(GL_TRIANGLES, o.numTriangles * 3, GL_UNSIGNED_INT, nullptr));
         glBindTexture(GL_TEXTURE_2D, 0);
+        shader.SetUniform1i("bool_Tex", 0);
     }
 }

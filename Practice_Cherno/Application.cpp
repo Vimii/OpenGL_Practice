@@ -223,6 +223,7 @@ static bool LoadObjAndConvert(float bmin[3], float bmax[3],
 
     printf("# of vertices  = %d\n", (int)(attrib.vertices.size()) / 3);
     printf("# of normals   = %d\n", (int)(attrib.normals.size()) / 3);
+    printf("# of colors   = %d\n", (int)(attrib.colors.size()) / 3);
     printf("# of texcoords = %d\n", (int)(attrib.texcoords.size()) / 2);
     printf("# of materials = %d\n", (int)materials.size());
     printf("# of shapes    = %d\n", (int)shapes.size());
@@ -584,7 +585,7 @@ int main(void) {
         GLCall(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
         
         /*ObjModel*/
-        std::string filepath = "models/sponza/sponza.obj";
+        std::string filepath = "models/sponza_bump/sponza.obj";
 
         float bmin[3], bmax[3];
 
@@ -598,6 +599,7 @@ int main(void) {
         Shader shader_Models("res/shaders/objShader.shader");
         shader_Models.Bind();
         shader_Models.SetUniform4f("u_Color", 1.0f, 0.4f, 0.9f, 1.0f);
+        shader_Models.SetUniform1i("bool_Tex", 0);
         shader_Models.UnBind();
 
         std::vector<tinyobj::material_t> materials;
@@ -731,12 +733,14 @@ int main(void) {
             /*Draw Object*/
             {
                 {
-                    glm::mat4 model = glm::rotate(glm::mat4(1.0f), glm::radians(-55.0f), translationA);
+                    glm::mat4 model = glm::rotate(glm::mat4(1.0f), glm::radians(-55.0f), translationB);
+                    model = glm::translate(model, translationB);
                     glm::mat4 mvp = proj * view * model;
                     texture.Bind();
                     shader.Bind();
                     shader.SetUniformMat4f("u_MVP", mvp);
                     renderer.Draw(va, ib, shader);
+                    shader.UnBind();
                 }
                 //{
                 //    glm::mat4 model = glm::translate(glm::mat4(1.0f), translationB);
@@ -745,14 +749,13 @@ int main(void) {
                 //    shader.SetUniformMat4f("u_MVP", mvp);
                 //    renderer.Draw(va, ib, shader);
                 //}
-                glm::mat4 model = glm::translate(glm::mat4(1.0f), translationB);
-                model = glm::scale(model, glm::vec3(10, 10, 10));
+                glm::mat4 model = glm::mat4(1.0f);
+                model = glm::scale(model, glm::vec3(0.1, 0.1, 0.1));
                 glm::mat4 mvp = proj * view * model;
                 shader_Models.Bind();
                 shader_Models.SetUniformMat4f("u_MVP", mvp);
                 renderer.DrawObj(gDrawObjects, materials, textures, shader_Models);
                 shader_Models.UnBind();
-                
             }
 
             /*Update valiables*/
