@@ -550,8 +550,8 @@ int main(void) {
         return -1;
 
     glfwWindowHint(GLFW_SAMPLES, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // To make MacOS happy; should not be needed
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
@@ -587,9 +587,12 @@ int main(void) {
         GLCall(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
         
         /*ObjModel*/
-        std::string filepath = "models/king.obj";
+        std::string filepath = "models/sponza_bump/sponza.obj";
+        //std::string filepath = "models/dragon.obj";
 
         float bmin[3], bmax[3];
+        glm::vec3 Translation_Model(0.0f,0.0f,0.0f);
+        float Rotation_Model(0.0f);
 
 
         VertexBufferLayout layout_Obj;
@@ -602,6 +605,10 @@ int main(void) {
         shader_Models.Bind();
         shader_Models.SetUniform4f("u_Color", 1.0f, 0.4f, 0.9f, 1.0f);
         shader_Models.SetUniform1i("bool_Tex", 0);
+        float ShineDamper = 0.1;
+        float Reflectivity = 0.5;
+        shader_Models.SetUniform1f("shineDamper", ShineDamper);
+        shader_Models.SetUniform1f("reflectivity", Reflectivity);
         shader_Models.UnBind();
 
         std::vector<tinyobj::material_t> materials;
@@ -701,9 +708,10 @@ int main(void) {
 
 
         /*Light*/
-
-        shader.SetUniform3f("Light_Color",1.0f,1.0f,1.0f);
-        shader.SetUniform3f("Light_Position", 1.0f, 1.0f, 1.0f);
+        glm::vec3 LightColor(1.0f, 1.0f, 1.0f);
+        glm::vec3 LightPosition(-10.0f, 0.0f, 0.0f);
+        shader_Models.SetUniform3f("lightColor",LightColor);
+        shader_Models.SetUniform3f("lightPosition", LightPosition);
 
 
         /*make Renderer*/
@@ -719,7 +727,6 @@ int main(void) {
         float increment = 0.05f;
         glm::vec3 translationA(200, 200, 0);
         glm::vec3 translationB(400, 200, 0);
-
 
         /* Loop until the user closes the window */
         while (!glfwWindowShouldClose(window))
@@ -739,6 +746,15 @@ int main(void) {
             camera.SetZoom(FOV);
             glm::mat4 proj = glm::perspective(glm::radians(camera.Zoom), WINDOW_WIDTH / WINDOW_HEIGHT, 0.1f, 1000.0f);
             glm::mat4 view = camera.GetViewMatrix();
+
+            /*light_Update*/
+            shader_Models.Bind();
+            shader_Models.SetUniform3f("lightPosition", LightPosition);
+            shader_Models.SetUniform3f("lightColor", LightColor);
+            
+            /*material_Update*/
+            shader_Models.SetUniform1f("shineDamper", ShineDamper);
+            shader_Models.SetUniform1f("reflectivity", Reflectivity);
 
             /*Draw Object*/
             {
@@ -761,11 +777,27 @@ int main(void) {
                 //}
                 glm::mat4 model = glm::mat4(1.0f);
                 model = glm::scale(model, glm::vec3(0.1, 0.1, 0.1));
-                glm::mat4 mvp = proj * view * model;
+                //model = glm::scale(model, glm::vec3(10.0f, 10.0f, 10.0f));
+                model = glm::rotate(model, glm::radians(Rotation_Model), glm::vec3(0.0,1.0,0.0));
+                model = glm::translate(model, Translation_Model);
                 shader_Models.Bind();
-                shader_Models.SetUniformMat4f("u_MVP", mvp);
+                shader_Models.SetUniformMat4f("u_Projection", proj);
+                shader_Models.SetUniformMat4f("u_View", view);
+                shader_Models.SetUniformMat4f("u_Model", model);
                 renderer.DrawObj(gDrawObjects, materials, textures, shader_Models);
                 shader_Models.UnBind();
+            }
+
+            /*Draw Light*/
+            {
+                glm::mat4 model = glm::translate(glm::mat4(1.0f), LightPosition);
+                model = glm::scale(model, glm::vec3(0.01, 0.01, 0.01));
+                glm::mat4 mvp = proj * view * model;
+                shader.Bind();
+                shader.SetUniform3f("u_Color", LightColor);
+                shader.SetUniformMat4f("u_MVP", mvp);
+                renderer.Draw(va, ib, shader);
+                shader.UnBind();
             }
 
             /*Update valiables*/
@@ -779,8 +811,18 @@ int main(void) {
             {
                 ImGui::Text("Camera");
                 ImGui::SliderFloat("FOV", &FOV, 0.0f,90.0f);
-                ImGui::SliderFloat3("Translation A", &translationA.x, 0.0f, WINDOW_WIDTH);
-                ImGui::SliderFloat3("Translation B", &translationB.x, 0.0f, WINDOW_WIDTH);
+                ImGui::SliderFloat3("Translation A", &translationA.x, 0.0f, 1000.0f);
+                ImGui::SliderFloat3("Translation B", &translationB.x, 0.0f, 1000.0f);
+                ImGui::Text("Light");
+                ImGui::SliderFloat3("Color", &LightColor.x, 0.0f, 10.0f);
+                ImGui::SliderFloat3("Position", &LightPosition.x, -100.0f, 100.0f);
+
+                ImGui::Text("Model");
+                ImGui::SliderFloat3("Translation", &Translation_Model.x, -100.0f, 100.0f);
+                ImGui::SliderFloat("Rotation", &Rotation_Model, -360.0f, 360.0f);
+                ImGui::Text("MaterialTest");
+                ImGui::SliderFloat("shineDamper", &ShineDamper, 0.0f, 20.0f);
+                ImGui::SliderFloat("reflectivity", &Reflectivity, 0.0f, 1.0f);
 
                 ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             }
