@@ -593,7 +593,7 @@ int main(void) {
         layout_Obj.Push<float>(3); //vtx
         layout_Obj.Push<float>(3); //normal
         layout_Obj.Push<float>(3); //color
-        layout_Obj.Push<unsigned int>(2); //uv
+        layout_Obj.Push<float>(2); //uv
 
         Shader shader_Models("res/shaders/objShader.shader");
         shader_Models.Bind();
@@ -682,7 +682,9 @@ int main(void) {
         /*make Shader*/
         Shader shader("res/shaders/practice1.shader");
 
-        Texture texture("res/textures/icon.png");
+        Texture texture("res/textures/uvColor.png");
+        texture.Bind(0);
+        Texture texture1("res/textures/uvColor.png");
         texture.Bind(0);
         shader.SetUniform1i("u_Texture", 0);
         shader.SetUniform4f("u_Color", 1.0f,0.4f,0.9f,1.0f);
