@@ -45,6 +45,7 @@ public:
     glm::mat4 GetViewMatrix();
     void ProcessKeyboard(Camera_Key_Input input, float deltaTime);
     void ProcessMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch = true);
+    void SetZoom(float zoom);
     void ProcessMouseScroll(float yoffset);
     void SpeedManager(bool dash = false);
 

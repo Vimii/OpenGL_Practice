@@ -1399,6 +1399,9 @@
     <None Include="res\shaders\objShader.shader">
       <Filter>リソース ファイル\shaders</Filter>
     </None>
+    <None Include="NormalMapping.shader">
+      <Filter>リソース ファイル\shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="res\textures\gold-dollar.png">

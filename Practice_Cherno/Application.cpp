@@ -40,6 +40,7 @@ float lastFrame = 0.0f;
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void processInput(GLFWwindow* window);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
+bool mouseActive = true;
 
 std::vector<DrawObject> gDrawObjects;
 
@@ -577,6 +578,7 @@ int main(void) {
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     void mouse_callback(GLFWwindow*, double xpos, double ypos);
     glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetScrollCallback(window, scroll_callback);
 
     {
         /*GL_Settings*/
@@ -585,7 +587,7 @@ int main(void) {
         GLCall(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
         
         /*ObjModel*/
-        std::string filepath = "models/sponza_bump/sponza.obj";
+        std::string filepath = "models/king.obj";
 
         float bmin[3], bmax[3];
 
@@ -697,6 +699,13 @@ int main(void) {
         ib.Unbind();
         shader.UnBind();
 
+
+        /*Light*/
+
+        shader.SetUniform3f("Light_Color",1.0f,1.0f,1.0f);
+        shader.SetUniform3f("Light_Position", 1.0f, 1.0f, 1.0f);
+
+
         /*make Renderer*/
         Renderer renderer;
 
@@ -727,6 +736,7 @@ int main(void) {
             ImGui_ImplGlfwGL3_NewFrame();
 
             /*View Update*/
+            camera.SetZoom(FOV);
             glm::mat4 proj = glm::perspective(glm::radians(camera.Zoom), WINDOW_WIDTH / WINDOW_HEIGHT, 0.1f, 1000.0f);
             glm::mat4 view = camera.GetViewMatrix();
 
@@ -766,14 +776,14 @@ int main(void) {
 
             r += increment;
 
-            //{
-            //    ImGui::Text("Camera");
-            //    ImGui::SliderFloat("FOV", &FOV, 0.0f,90.0f);
-            //    ImGui::SliderFloat3("Translation A", &translationA.x, 0.0f, WINDOW_WIDTH);
-            //    ImGui::SliderFloat3("Translation B", &translationB.x, 0.0f, WINDOW_WIDTH);
+            {
+                ImGui::Text("Camera");
+                ImGui::SliderFloat("FOV", &FOV, 0.0f,90.0f);
+                ImGui::SliderFloat3("Translation A", &translationA.x, 0.0f, WINDOW_WIDTH);
+                ImGui::SliderFloat3("Translation B", &translationB.x, 0.0f, WINDOW_WIDTH);
 
-            //    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-            //}
+                ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+            }
 
             ImGui::Render();
             ImGui_ImplGlfwGL3_RenderDrawData(ImGui::GetDrawData());
@@ -808,7 +818,7 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 	lastX = xpos;
 	lastY = ypos;
 
-	camera.ProcessMouseMovement(xoffset, yoffset);
+	if(mouseActive) camera.ProcessMouseMovement(xoffset, yoffset);
 }
 
 void processInput(GLFWwindow* window)
@@ -832,7 +842,16 @@ void processInput(GLFWwindow* window)
 		camera.ProcessKeyboard(DOWN, deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
 		camera.ProcessKeyboard(UP, deltaTime);
-
+    if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)
+    {
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        mouseActive = false;
+    }
+    if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS)
+    {
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        mouseActive = true;
+    }
 }
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
