@@ -11,6 +11,7 @@
 #include "Texture.h"
 
 typedef struct {
+    GLuint va_id;  // vertex array id
     GLuint vb_id;  // vertex buffer id
     GLuint ib_id;  // index buffer id
     int numTriangles;
@@ -25,7 +26,6 @@ public:
     void DrawObj(const std::vector<DrawObject>& drawObjects,
         std::vector<tinyobj::material_t>& materials,
         std::map<std::string, GLuint>& textures,
-        const VertexArray& va,
-        const Shader& shader);
+        Shader& shader);
 
 };

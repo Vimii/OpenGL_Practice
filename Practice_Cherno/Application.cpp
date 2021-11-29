@@ -189,7 +189,6 @@ static bool LoadObjAndConvert(float bmin[3], float bmax[3],
     std::vector<tinyobj::material_t>& materials,
     std::map<std::string, GLuint>& textures,
     const char* filename,
-    VertexArray& va,
     VertexBufferLayout& layout) 
 {
 
@@ -509,7 +508,8 @@ static bool LoadObjAndConvert(float bmin[3], float bmax[3],
                 GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, o.ib_id));
                 GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, ibuffer.size() * sizeof(unsigned int), &ibuffer.at(0), GL_STATIC_DRAW));
 
-                va.Bind();
+                GLCall(glGenVertexArrays(1, &o.va_id));
+                GLCall(glBindVertexArray(o.va_id));
                 GLCall(glBindBuffer(GL_ARRAY_BUFFER, o.vb_id));
                 const auto& elements = layout.GetElements();
                 unsigned int offset = 0;
@@ -548,8 +548,8 @@ int main(void) {
         return -1;
 
     glfwWindowHint(GLFW_SAMPLES, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // To make MacOS happy; should not be needed
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
@@ -584,12 +584,10 @@ int main(void) {
         GLCall(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
         
         /*ObjModel*/
-        std::string filepath = "models/bunny.obj";
+        std::string filepath = "models/sponza/sponza.obj";
 
         float bmin[3], bmax[3];
 
-
-        VertexArray vao_Models;
 
         VertexBufferLayout layout_Obj;
         layout_Obj.Push<float>(3); //vtx
@@ -605,7 +603,7 @@ int main(void) {
         std::vector<tinyobj::material_t> materials;
         std::map<std::string, GLuint> textures;
         if (false == LoadObjAndConvert(bmin, bmax, &gDrawObjects, materials, textures,
-            filepath.c_str(), vao_Models,layout_Obj)) {
+            filepath.c_str(),layout_Obj)) {
             return -1;
         }
 
@@ -746,11 +744,11 @@ int main(void) {
                 //    renderer.Draw(va, ib, shader);
                 //}
                 glm::mat4 model = glm::translate(glm::mat4(1.0f), translationB);
-                model = glm::scale(model, glm::vec3(100, 100, 100));
+                model = glm::scale(model, glm::vec3(10, 10, 10));
                 glm::mat4 mvp = proj * view * model;
                 shader_Models.Bind();
                 shader_Models.SetUniformMat4f("u_MVP", mvp);
-                renderer.DrawObj(gDrawObjects, materials, textures, vao_Models, shader_Models);
+                renderer.DrawObj(gDrawObjects, materials, textures, shader_Models);
                 shader_Models.UnBind();
                 
             }
@@ -763,14 +761,14 @@ int main(void) {
 
             r += increment;
 
-            {
-                ImGui::Text("Camera");
-                ImGui::SliderFloat("FOV", &FOV, 0.0f,90.0f);
-                ImGui::SliderFloat3("Translation A", &translationA.x, 0.0f, WINDOW_WIDTH);
-                ImGui::SliderFloat3("Translation B", &translationB.x, 0.0f, WINDOW_WIDTH);
+            //{
+            //    ImGui::Text("Camera");
+            //    ImGui::SliderFloat("FOV", &FOV, 0.0f,90.0f);
+            //    ImGui::SliderFloat3("Translation A", &translationA.x, 0.0f, WINDOW_WIDTH);
+            //    ImGui::SliderFloat3("Translation B", &translationB.x, 0.0f, WINDOW_WIDTH);
 
-                ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-            }
+            //    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+            //}
 
             ImGui::Render();
             ImGui_ImplGlfwGL3_RenderDrawData(ImGui::GetDrawData());
