@@ -475,8 +475,10 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="NormalMapping.shader" />
-    <None Include="objShader_Unlit.shader" />
+    <None Include="res\shaders\objShader_Reflection.shader" />
+    <None Include="res\shaders\objShader_Unlit.shader" />
     <None Include="res\shaders\objShader.shader" />
+    <None Include="res\shaders\objShader_Specular.shader" />
     <None Include="res\shaders\practice1.shader" />
     <None Include="res\shaders\skybox.shader" />
     <None Include="vendor\glm\detail\func_common.inl" />

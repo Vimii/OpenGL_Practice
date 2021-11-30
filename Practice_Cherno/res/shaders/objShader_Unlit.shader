@@ -27,11 +27,11 @@ layout(location = 0) out vec4 color;
 
 uniform sampler2D u_Texture;
 uniform vec4 u_Color;
-uniform int bool_Tex;
+uniform int bool_Tex_Dif;
 
 void main()
 {
-	if (bool_Tex == 1) {
+	if (bool_Tex_Dif == 1) {
 		vec4 texColor = texture(u_Texture, v_TexCoord);
 		color = texColor;
 	}

@@ -1402,10 +1402,16 @@
     <None Include="NormalMapping.shader">
       <Filter>リソース ファイル\shaders</Filter>
     </None>
-    <None Include="objShader_Unlit.shader">
+    <None Include="res\shaders\objShader_Unlit.shader">
       <Filter>リソース ファイル\shaders</Filter>
     </None>
     <None Include="res\shaders\skybox.shader">
+      <Filter>リソース ファイル\shaders</Filter>
+    </None>
+    <None Include="res\shaders\objShader_Specular.shader">
+      <Filter>リソース ファイル\shaders</Filter>
+    </None>
+    <None Include="res\shaders\objShader_Reflection.shader">
       <Filter>リソース ファイル\shaders</Filter>
     </None>
   </ItemGroup>
