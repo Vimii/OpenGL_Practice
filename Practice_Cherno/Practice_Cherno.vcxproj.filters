@@ -1399,7 +1399,7 @@
     <None Include="res\shaders\objShader.shader">
       <Filter>リソース ファイル\shaders</Filter>
     </None>
-    <None Include="NormalMapping.shader">
+    <None Include="res\shaders\Framebuffer.shader">
       <Filter>リソース ファイル\shaders</Filter>
     </None>
     <None Include="res\shaders\objShader_Unlit.shader">
@@ -1415,6 +1415,9 @@
       <Filter>リソース ファイル\shaders</Filter>
     </None>
     <None Include="res\shaders\objShader_Refraction.shader">
+      <Filter>リソース ファイル\shaders</Filter>
+    </None>
+    <None Include="res\shaders\objShader_NormalMapping.shader">
       <Filter>リソース ファイル\shaders</Filter>
     </None>
   </ItemGroup>

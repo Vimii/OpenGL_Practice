@@ -474,7 +474,8 @@
     <ClInclude Include="VertexBufferLayout.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="NormalMapping.shader" />
+    <None Include="res\shaders\Framebuffer.shader" />
+    <None Include="res\shaders\objShader_NormalMapping.shader" />
     <None Include="res\shaders\objShader_Reflection.shader" />
     <None Include="res\shaders\objShader_Refraction.shader" />
     <None Include="res\shaders\objShader_Unlit.shader" />
