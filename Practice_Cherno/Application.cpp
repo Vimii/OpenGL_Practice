@@ -540,6 +540,40 @@ static bool LoadObjAndConvert(float bmin[3], float bmax[3],
     return true;
 }//LoadObjAndConvert
 
+/*Skybox*/
+unsigned int loadCubemap(std::string dir, std::vector<std::string> faces)
+{
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+
+    int width, height, nrChannels;
+    for (unsigned int i = 0; i < faces.size(); i++)
+    {
+        unsigned char* data = stbi_load((dir + faces[i]).c_str(), &width, &height, &nrChannels, 0);
+        if (data)
+        {
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+                0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data
+            );
+            stbi_image_free(data);
+        }
+        else
+        {
+            std::cout << "Cubemap tex failed to load at path: " << faces[i] << std::endl;
+            stbi_image_free(data);
+        }
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+    return textureID;
+}
+
+
 
 int main(void) {
 
@@ -587,8 +621,9 @@ int main(void) {
         GLCall(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
         
         /*ObjModel*/
-        std::string filepath = "models/sponza_bump/sponza.obj";
+        //std::string filepath = "models/sponza_bump/sponza.obj";
         //std::string filepath = "models/dragon.obj";
+        std::string filepath = "models/bunny.obj";
 
         float bmin[3], bmax[3];
         glm::vec3 Translation_Model(0.0f,0.0f,0.0f);
@@ -604,8 +639,9 @@ int main(void) {
         Shader shader_Models("res/shaders/objShader.shader");
         shader_Models.Bind();
         shader_Models.SetUniform4f("u_Color", 1.0f, 0.4f, 0.9f, 1.0f);
-        shader_Models.SetUniform1i("bool_Tex", 0);
-        float ShineDamper = 0.1;
+        shader_Models.SetUniform1i("bool_Tex_Dif", 0);
+        shader_Models.SetUniform1i("bool_Tex_Spec", 0);
+        float ShineDamper = 16.0;
         float Reflectivity = 0.5;
         shader_Models.SetUniform1f("shineDamper", ShineDamper);
         shader_Models.SetUniform1f("reflectivity", Reflectivity);
@@ -660,6 +696,73 @@ int main(void) {
             4,5,1,
             1,0,4,
         };
+
+        /*Skybox*/
+
+        float skyboxVertices[] = {
+            // positions          
+            -1.0f,  1.0f, -1.0f,
+            -1.0f, -1.0f, -1.0f,
+             1.0f, -1.0f, -1.0f,
+             1.0f, -1.0f, -1.0f,
+             1.0f,  1.0f, -1.0f,
+            -1.0f,  1.0f, -1.0f,
+
+            -1.0f, -1.0f,  1.0f,
+            -1.0f, -1.0f, -1.0f,
+            -1.0f,  1.0f, -1.0f,
+            -1.0f,  1.0f, -1.0f,
+            -1.0f,  1.0f,  1.0f,
+            -1.0f, -1.0f,  1.0f,
+
+             1.0f, -1.0f, -1.0f,
+             1.0f, -1.0f,  1.0f,
+             1.0f,  1.0f,  1.0f,
+             1.0f,  1.0f,  1.0f,
+             1.0f,  1.0f, -1.0f,
+             1.0f, -1.0f, -1.0f,
+
+            -1.0f, -1.0f,  1.0f,
+            -1.0f,  1.0f,  1.0f,
+             1.0f,  1.0f,  1.0f,
+             1.0f,  1.0f,  1.0f,
+             1.0f, -1.0f,  1.0f,
+            -1.0f, -1.0f,  1.0f,
+
+            -1.0f,  1.0f, -1.0f,
+             1.0f,  1.0f, -1.0f,
+             1.0f,  1.0f,  1.0f,
+             1.0f,  1.0f,  1.0f,
+            -1.0f,  1.0f,  1.0f,
+            -1.0f,  1.0f, -1.0f,
+
+            -1.0f, -1.0f, -1.0f,
+            -1.0f, -1.0f,  1.0f,
+             1.0f, -1.0f, -1.0f,
+             1.0f, -1.0f, -1.0f,
+            -1.0f, -1.0f,  1.0f,
+             1.0f, -1.0f,  1.0f
+        };
+        Shader skyboxShader("res/shaders/skybox.shader");
+
+        std::string skyboxDir = "res/cubemaps/02/";
+        std::vector<std::string> faces
+        {
+                "px.png",
+                "nx.png",
+                "py.png",
+                "ny.png",
+                "pz.png",
+                "nz.png"
+        };
+        unsigned int cubemapTexture = loadCubemap(skyboxDir,faces);
+
+        VertexArray skyboxVAO;
+        VertexBuffer skyboxVBO(skyboxVertices, sizeof(skyboxVertices));        
+        VertexBufferLayout skyboxLayout;
+        skyboxLayout.Push<float>(3); //Box_position
+        skyboxVAO.addBuffer(skyboxVBO, skyboxLayout);
+
 
         /*Plane*/
         //float positions[] = {
@@ -747,12 +850,12 @@ int main(void) {
             glm::mat4 proj = glm::perspective(glm::radians(camera.Zoom), WINDOW_WIDTH / WINDOW_HEIGHT, 0.1f, 1000.0f);
             glm::mat4 view = camera.GetViewMatrix();
 
-            /*light_Update*/
+            /*light Update*/
             shader_Models.Bind();
             shader_Models.SetUniform3f("lightPosition", LightPosition);
             shader_Models.SetUniform3f("lightColor", LightColor);
             
-            /*material_Update*/
+            /*material Update*/
             shader_Models.SetUniform1f("shineDamper", ShineDamper);
             shader_Models.SetUniform1f("reflectivity", Reflectivity);
 
@@ -776,8 +879,8 @@ int main(void) {
                 //    renderer.Draw(va, ib, shader);
                 //}
                 glm::mat4 model = glm::mat4(1.0f);
-                model = glm::scale(model, glm::vec3(0.1, 0.1, 0.1));
-                //model = glm::scale(model, glm::vec3(10.0f, 10.0f, 10.0f));
+                //model = glm::scale(model, glm::vec3(0.1, 0.1, 0.1));
+                model = glm::scale(model, glm::vec3(10.0f, 10.0f, 10.0f));
                 model = glm::rotate(model, glm::radians(Rotation_Model), glm::vec3(0.0,1.0,0.0));
                 model = glm::translate(model, Translation_Model);
                 shader_Models.Bind();
@@ -799,6 +902,18 @@ int main(void) {
                 renderer.Draw(va, ib, shader);
                 shader.UnBind();
             }
+
+            /*Skybox Update*/
+            view = glm::mat4(glm::mat3(view)); // remove translation from the view matrix
+            GLCall(glDepthFunc(GL_LEQUAL));
+            skyboxShader.Bind();
+            skyboxShader.SetUniformMat4f("projection", proj);
+            skyboxShader.SetUniformMat4f("view", view);
+            skyboxVAO.Bind();
+            GLCall(glActiveTexture(GL_TEXTURE0));
+            GLCall(glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture));
+            GLCall(glDrawArrays(GL_TRIANGLES, 0, 36));
+            GLCall(glDepthFunc(GL_LESS));
 
             /*Update valiables*/
             if (r > 1.0f)

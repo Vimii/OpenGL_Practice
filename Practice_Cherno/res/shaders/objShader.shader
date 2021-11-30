@@ -40,9 +40,10 @@ in vec3 toCameraVector;
 
 layout(location = 0) out vec4 color;
 
-uniform sampler2D u_Texture;
+uniform sampler2D u_Texture_Diffuse;
+uniform sampler2D u_Texture_Specular;
 uniform vec4 u_Color;
-uniform int bool_Tex;
+uniform int bool_Tex_Dif,bool_Tex_Spec;
 uniform vec3 lightColor;
 uniform float shineDamper;
 uniform float reflectivity;
@@ -67,15 +68,16 @@ void main()
 	specularFactor = max(specularFactor, 0.0);
 	float dampedFactor = pow(specularFactor, shineDamper);
 	vec3 finalSpecular = dampedFactor * reflectivity * lightColor;
+	if (bool_Tex_Spec == 1)
+		finalSpecular *= vec3(texture(u_Texture_Specular, v_TexCoord));
 
-
-	if (bool_Tex == 1) {
-		vec4 texColor = texture(u_Texture, v_TexCoord);
+	if (bool_Tex_Dif == 1) {
+		vec4 texColor = texture(u_Texture_Diffuse, v_TexCoord);
 		color = texColor;
 	}
 	else
 	{
-		color = u_Color;
+		color = v_Color;
 	}
 
 	/*lighting*/

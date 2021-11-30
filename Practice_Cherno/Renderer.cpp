@@ -39,16 +39,25 @@ void Renderer::DrawObj(const std::vector<DrawObject>& drawObjects,
         GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, o.ib_id));
         if ((o.material_id < materials.size())) {
             std::string diffuse_texname = materials[o.material_id].diffuse_texname;
+            
             if (textures.find(diffuse_texname) != textures.end()) {
                 GLCall(glActiveTexture(GL_TEXTURE0));
                 GLCall(glBindTexture(GL_TEXTURE_2D, textures[diffuse_texname]));
-                shader.SetUniform1i("u_Texture" , 0);
-                shader.SetUniform1i("bool_Tex", 1);
+                shader.SetUniform1i("u_Texture_Diffuse" , 0);
+                shader.SetUniform1i("bool_Tex_Dif", 1);
+            }
+            std::string specular_texname = materials[o.material_id].specular_texname;
+            if (textures.find(specular_texname) != textures.end()) {
+                GLCall(glActiveTexture(GL_TEXTURE1));
+                GLCall(glBindTexture(GL_TEXTURE_2D, textures[specular_texname]));
+                shader.SetUniform1i("u_Texture_Specular", 1);
+                shader.SetUniform1i("bool_Tex_Spec", 1);
             }
         }
 
         GLCall(glDrawElements(GL_TRIANGLES, o.numTriangles * 3, GL_UNSIGNED_INT, nullptr));
         glBindTexture(GL_TEXTURE_2D, 0);
-        shader.SetUniform1i("bool_Tex", 0);
+        shader.SetUniform1i("bool_Tex_Dif", 0);
+        shader.SetUniform1i("bool_Tex_Spec", 0);
     }
 }
