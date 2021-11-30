@@ -70,7 +70,7 @@ void main()
 	float brightness = max(nDot1, 0.0);
 	vec3 diffuse = brightness * lightColor;
 
-	float ambientStrength = 0.1;
+	float ambientStrength = 0.8;
 	vec3 ambient = ambientStrength * vec3(1.0, 1.0, 1.0);
 
 	vec3 unitVectorToCamera = normalize(toCameraVector);
@@ -93,14 +93,15 @@ void main()
 		color = v_Color;
 	}
 
-	/*SkyReflection*/
+	/*SkyRefraction*/
+	float ratio = 1.00 / 1.52;
 	vec3 I = normalize(ReflectPosition - cameraPos);
-	vec3 R = reflect(I, normalize(ReflectNormal));
-	vec4 ReflectColor = vec4(texture(skybox, R).rgb, 1.0);
-	color = reflectivity * ReflectColor + (1.0 - reflectivity) * color;
+	vec3 R = refract(I, normalize(ReflectNormal), ratio);
+	vec4 RefractColor = vec4(texture(skybox, R).rgb, 1.0);
+	color = reflectivity * RefractColor + (1.0 - reflectivity) * color;
 
 	/*lighting*/
-	vec3 light = diffuse + ambient + finalSpecular;
+	//vec3 light = diffuse + ambient + finalSpecular;
+	vec3 light = ambient + finalSpecular;
 	color = vec4(light, 1.0) * color;
-	//color = ReflectColor;
 }

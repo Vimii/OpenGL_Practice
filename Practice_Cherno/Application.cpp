@@ -703,7 +703,8 @@ int main(void) {
         layout_Obj.Push<float>(2); //uv
 
         //Shader shader_Models("res/shaders/objShader.shader");
-        Shader shader_Models("res/shaders/objShader_Reflection.shader");
+        //Shader shader_Models("res/shaders/objShader_Reflection.shader");
+        Shader shader_Models("res/shaders/objShader_Refraction.shader");
         shader_Models.Bind();
         shader_Models.SetUniform4f("u_Color", 1.0f, 0.4f, 0.9f, 1.0f);
         shader_Models.SetUniform1i("bool_Tex_Dif", 0);

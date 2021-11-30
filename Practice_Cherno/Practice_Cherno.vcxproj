@@ -476,6 +476,7 @@
   <ItemGroup>
     <None Include="NormalMapping.shader" />
     <None Include="res\shaders\objShader_Reflection.shader" />
+    <None Include="res\shaders\objShader_Refraction.shader" />
     <None Include="res\shaders\objShader_Unlit.shader" />
     <None Include="res\shaders\objShader.shader" />
     <None Include="res\shaders\objShader_Specular.shader" />
