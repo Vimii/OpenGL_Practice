@@ -19,10 +19,16 @@ uniform mat4 u_View;
 uniform mat4 u_Model;
 uniform vec3 lightPosition;
 
+
+uniform vec4 plane;
+
 void main()
 {
 	cameraPos = (inverse(u_View) * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
 	vec4 worldPosition = u_Model * position;
+
+
+	gl_ClipDistance[0] = dot(worldPosition, plane);
 
 	surfaceNormal = (u_Model * vec4(normal, 0.0)).xyz;
 	toLightVector = lightPosition - worldPosition.xyz;
@@ -54,15 +60,18 @@ layout(location = 0) out vec4 color;
 
 uniform sampler2D u_Texture_Diffuse;
 uniform sampler2D u_Texture_Specular;
+uniform sampler2D u_Texture_Reflection;
+uniform float Specular, Metallic;
 uniform vec4 u_Color;
-uniform int bool_Tex_Dif,bool_Tex_Spec;
+uniform int bool_Tex_Dif,bool_Tex_Spec,bool_Tex_Refl;
 uniform vec3 lightColor;
 uniform float shineDamper;
-uniform float reflectivity;
+//uniform float reflectivity;
 uniform samplerCube skybox;
 
 void main()
 {
+	
 	vec3 unitNormal = normalize(surfaceNormal);
 	vec3 unitLightVector = normalize(toLightVector);
 
@@ -80,9 +89,19 @@ void main()
 	float specularFactor = dot(reflectedLightDirection, unitVectorToCamera);
 	specularFactor = max(specularFactor, 0.0);
 	float dampedFactor = pow(specularFactor, shineDamper);
-	vec3 finalSpecular = dampedFactor * reflectivity * lightColor;
+	vec3 finalSpecular = vec3(0,0,0);
+
+	float reflectivity;
+	if (bool_Tex_Refl == 1) reflectivity = vec3(texture(u_Texture_Reflection, v_TexCoord)).r;
+	else
+		reflectivity = Metallic;
+	
+	finalSpecular = dampedFactor * reflectivity * lightColor;
+	
 	if (bool_Tex_Spec == 1)
 		finalSpecular *= vec3(texture(u_Texture_Specular, v_TexCoord));
+	else
+		finalSpecular *= Specular;
 
 	if (bool_Tex_Dif == 1) {
 		vec4 texColor = texture(u_Texture_Diffuse, v_TexCoord);

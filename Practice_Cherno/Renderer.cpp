@@ -53,11 +53,30 @@ void Renderer::DrawObj(const std::vector<DrawObject>& drawObjects,
                 shader.SetUniform1i("u_Texture_Specular", 1);
                 shader.SetUniform1i("bool_Tex_Spec", 1);
             }
+            else
+            {
+                auto spec = materials[o.material_id].specular;
+                shader.SetUniform1f("Specular", *spec);
+            }
+
+            std::string reflection_texname = materials[o.material_id].reflection_texname;
+            if (textures.find(reflection_texname) != textures.end()) {
+                GLCall(glActiveTexture(GL_TEXTURE2));
+                GLCall(glBindTexture(GL_TEXTURE_2D, textures[reflection_texname]));
+                shader.SetUniform1i("u_Texture_Reflection", 2);
+                shader.SetUniform1i("bool_Tex_Refl", 1);
+            }
+            else
+            {
+                auto metal = materials[o.material_id].metallic;
+                shader.SetUniform1f("Metallic", metal);
+            }
         }
 
         GLCall(glDrawElements(GL_TRIANGLES, o.numTriangles * 3, GL_UNSIGNED_INT, nullptr));
         glBindTexture(GL_TEXTURE_2D, 0);
         shader.SetUniform1i("bool_Tex_Dif", 0);
         shader.SetUniform1i("bool_Tex_Spec", 0);
+        shader.SetUniform1i("bool_Tex_Refl", 0);
     }
 }

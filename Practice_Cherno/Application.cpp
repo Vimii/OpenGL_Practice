@@ -42,7 +42,7 @@ void processInput(GLFWwindow* window);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 bool mouseActive = true;
 
-std::vector<DrawObject> gDrawObjects;
+
 
 static std::string GetBaseDir(const std::string& filepath) {
     if (filepath.find_last_of("/\\") != std::string::npos)
@@ -235,6 +235,10 @@ static bool LoadObjAndConvert(float bmin[3], float bmax[3],
     for (size_t i = 0; i < materials.size(); i++) {
         printf("material[%d].diffuse_texname = %s\n", int(i),
             materials[i].diffuse_texname.c_str());
+        printf("material[%d].specular_texname = %s\n", int(i),
+            materials[i].specular_texname.c_str());
+        printf("material[%d].reflection_texname = %s\n", int(i),
+            materials[i].reflection_texname.c_str());
     }
 
     // Load diffuse textures
@@ -288,6 +292,118 @@ static bool LoadObjAndConvert(float bmin[3], float bmax[3],
                     glBindTexture(GL_TEXTURE_2D, 0);
                     stbi_image_free(image);
                     textures.insert(std::make_pair(mp->diffuse_texname, texture_id));
+                }
+            }
+        }
+    }
+
+    // Load specular textures
+    {
+        for (size_t m = 0; m < materials.size(); m++) {
+            tinyobj::material_t* mp = &materials[m];
+
+            if (mp->specular_texname.length() > 0) {
+                // Only load the texture if it is not already loaded
+                if (textures.find(mp->specular_texname) == textures.end()) {
+                    GLuint texture_id;
+                    int w, h;
+                    int comp;
+
+                    std::string texture_filename = mp->specular_texname;
+                    if (!FileExists(texture_filename)) {
+                        // Append base dir.
+                        texture_filename = base_dir + mp->specular_texname;
+                        if (!FileExists(texture_filename)) {
+                            std::cerr << "Unable to find file: " << mp->specular_texname
+                                << std::endl;
+                            exit(1);
+                        }
+                    }
+
+                    unsigned char* image =
+                        stbi_load(texture_filename.c_str(), &w, &h, &comp, STBI_default);
+                    if (!image) {
+                        std::cerr << "Unable to load texture: " << texture_filename
+                            << std::endl;
+                        exit(1);
+                    }
+                    std::cout << "Loaded texture: " << texture_filename << ", w = " << w
+                        << ", h = " << h << ", comp = " << comp << std::endl;
+
+                    glGenTextures(1, &texture_id);
+                    glBindTexture(GL_TEXTURE_2D, texture_id);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                    if (comp == 3) {
+                        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB,
+                            GL_UNSIGNED_BYTE, image);
+                    }
+                    else if (comp == 4) {
+                        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA,
+                            GL_UNSIGNED_BYTE, image);
+                    }
+                    else {
+                        assert(0);  // TODO
+                    }
+                    glBindTexture(GL_TEXTURE_2D, 0);
+                    stbi_image_free(image);
+                    textures.insert(std::make_pair(mp->specular_texname, texture_id));
+                }
+            }
+        }
+    }
+
+    // Load reflection textures
+    {
+        for (size_t m = 0; m < materials.size(); m++) {
+            tinyobj::material_t* mp = &materials[m];
+
+            if (mp->reflection_texname.length() > 0) {
+                // Only load the texture if it is not already loaded
+                if (textures.find(mp->reflection_texname) == textures.end()) {
+                    GLuint texture_id;
+                    int w, h;
+                    int comp;
+
+                    std::string texture_filename = mp->reflection_texname;
+                    if (!FileExists(texture_filename)) {
+                        // Append base dir.
+                        texture_filename = base_dir + mp->reflection_texname;
+                        if (!FileExists(texture_filename)) {
+                            std::cerr << "Unable to find file: " << mp->reflection_texname
+                                << std::endl;
+                            exit(1);
+                        }
+                    }
+
+                    unsigned char* image =
+                        stbi_load(texture_filename.c_str(), &w, &h, &comp, STBI_default);
+                    if (!image) {
+                        std::cerr << "Unable to load texture: " << texture_filename
+                            << std::endl;
+                        exit(1);
+                    }
+                    std::cout << "Loaded texture: " << texture_filename << ", w = " << w
+                        << ", h = " << h << ", comp = " << comp << std::endl;
+
+                    glGenTextures(1, &texture_id);
+                    glBindTexture(GL_TEXTURE_2D, texture_id);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                    if (comp == 3) {
+                        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB,
+                            GL_UNSIGNED_BYTE, image);
+                    }
+                    else if (comp == 4) {
+                        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA,
+                            GL_UNSIGNED_BYTE, image);
+                    }
+                    else {
+                        assert(0);  // TODO
+                    }
+                    glBindTexture(GL_TEXTURE_2D, 0);
+                    stbi_image_free(image);
+                    textures.insert(std::make_pair(mp->reflection_texname, texture_id));
                 }
             }
         }
@@ -687,10 +803,16 @@ int main(void) {
         skyboxVAO.addBuffer(skyboxVBO, skyboxLayout);
         
         /*ObjModel*/
+        std::vector<DrawObject> gDrawObjects1, gDrawObjects2;
+        
         //std::string filepath = "models/sponza_bump/sponza.obj";
-        std::string filepath = "models/dragon.obj";
+        //std::string filepath = "models/dragon.obj";
         //std::string filepath = "models/bunny.obj";
         //std::string filepath = "models/flag.obj";
+
+        std::string filepath1 = "models/Cove/Cove.obj";
+        //std::string filepath1 = "models/Cove/grass.obj";
+        std::string filepath2 = "models/Cove/unlitObjects.obj";
 
         float bmin[3], bmax[3];
         glm::vec3 Translation_Model(0.0f,0.0f,0.0f);
@@ -723,21 +845,32 @@ int main(void) {
 
         shader_Models.UnBind();
 
-        std::vector<tinyobj::material_t> materials;
-        std::map<std::string, GLuint> textures;
-        if (false == LoadObjAndConvert(bmin, bmax, &gDrawObjects, materials, textures,
-            filepath.c_str(),layout_Obj)) {
+        std::vector<tinyobj::material_t> materials1;
+        std::map<std::string, GLuint> textures1;
+        if (false == LoadObjAndConvert(bmin, bmax, &gDrawObjects1, materials1, textures1,
+            filepath1.c_str(),layout_Obj)) {
             return -1;
         }
 
-        float maxExtent = 0.5f * (bmax[0] - bmin[0]);
-        if (maxExtent < 0.5f * (bmax[1] - bmin[1])) {
-            maxExtent = 0.5f * (bmax[1] - bmin[1]);
-        }
-        if (maxExtent < 0.5f * (bmax[2] - bmin[2])) {
-            maxExtent = 0.5f * (bmax[2] - bmin[2]);
+        std::vector<tinyobj::material_t> materials2;
+        std::map<std::string, GLuint> textures2;
+        if (false == LoadObjAndConvert(bmin, bmax, &gDrawObjects2, materials2, textures2,
+            filepath2.c_str(), layout_Obj)) {
+            return -1;
         }
 
+        /*bugfix*/
+        for (size_t i = 0; i < gDrawObjects2.size(); i++) {
+            DrawObject& o = gDrawObjects2[i];
+            if (o.vb_id < 1) {
+                continue;
+            }
+            
+            if ((o.material_id < materials2.size())) {
+                if (o.numTriangles == 2) gDrawObjects2[i].material_id = 2 + rand() % 2;
+                if (o.numTriangles == 6) gDrawObjects2[i].material_id = 7;
+            }
+        }
 
         Texture normalmap("res/textures/normal_map_Brick.png");
 
@@ -834,7 +967,7 @@ int main(void) {
         ImGui::CreateContext();
         ImGui_ImplGlfwGL3_Init(window, true);
         ImGui::StyleColorsDark();
-
+        
 
         /*ScreenQuad*/
 
@@ -905,14 +1038,28 @@ int main(void) {
             /* Render here */
             glBindFramebuffer(GL_FRAMEBUFFER, fbo);
             glEnable(GL_DEPTH_TEST);
+            glEnable(GL_CLIP_DISTANCE0);
+            
             renderer.Clear();
 
             ImGui_ImplGlfwGL3_NewFrame();
 
             /*View Update*/
             camera.SetZoom(FOV);
-            glm::mat4 proj = glm::perspective(glm::radians(camera.Zoom), WINDOW_WIDTH / WINDOW_HEIGHT, 0.1f, 1000.0f);
+            glm::mat4 proj = glm::perspective(glm::radians(camera.Zoom), WINDOW_WIDTH / WINDOW_HEIGHT, 0.1f, 2000.0f);
             glm::mat4 view = camera.GetViewMatrix();
+
+            /*Skybox Update*/
+            glm::mat4 skyboxView = glm::mat4(glm::mat3(view)); // remove translation from the view matrix
+            GLCall(glDepthFunc(GL_LEQUAL));
+            skyboxShader.Bind();
+            skyboxShader.SetUniformMat4f("projection", proj);
+            skyboxShader.SetUniformMat4f("view",skyboxView);
+            skyboxVAO.Bind();
+            GLCall(glActiveTexture(GL_TEXTURE0));
+            GLCall(glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture));
+            GLCall(glDrawArrays(GL_TRIANGLES, 0, 36));
+            GLCall(glDepthFunc(GL_LESS));
 
             /*light Update*/
             shader_Models.Bind();
@@ -942,22 +1089,46 @@ int main(void) {
                 //    shader.SetUniformMat4f("u_MVP", mvp);
                 //    renderer.Draw(va, ib, shader);
                 //}
-                glm::mat4 model = glm::mat4(1.0f);
-                //model = glm::scale(model, glm::vec3(0.1, 0.1, 0.1));
-                model = glm::scale(model, glm::vec3(10.0f, 10.0f, 10.0f));
-                model = glm::rotate(model, glm::radians(Rotation_Model), glm::vec3(0.0,1.0,0.0));
-                model = glm::translate(model, Translation_Model);
-                normalmap.Bind(3);
-                GLCall(glActiveTexture(GL_TEXTURE7));
-                GLCall(glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture));
-                shader_Models.Bind(); 
-                shader_Models.SetUniform1i("u_Texture_Normal", 3);
-                shader_Models.SetUniform1i("skybox", 7);
-                shader_Models.SetUniformMat4f("u_Projection", proj);
-                shader_Models.SetUniformMat4f("u_View", view);
-                shader_Models.SetUniformMat4f("u_Model", model);
-                renderer.DrawObj(gDrawObjects, materials, textures, shader_Models);
-                shader_Models.UnBind();
+                {
+                    glm::mat4 model = glm::mat4(1.0f);
+                    //model = glm::scale(model, glm::vec3(0.1, 0.1, 0.1));
+                    model = glm::scale(model, glm::vec3(10.0f, 10.0f, 10.0f));
+                    model = glm::rotate(model, glm::radians(Rotation_Model), glm::vec3(0.0, 1.0, 0.0));
+                    model = glm::translate(model, Translation_Model);
+                    normalmap.Bind(3);
+                    GLCall(glActiveTexture(GL_TEXTURE7));
+                    GLCall(glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture));
+                    shader_Models.Bind();
+                    shader_Models.SetUniform1i("u_Texture_Normal", 3);
+                    shader_Models.SetUniform1i("skybox", 7);
+                    shader_Models.SetUniformMat4f("u_Projection", proj);
+                    shader_Models.SetUniformMat4f("u_View", view);
+                    shader_Models.SetUniformMat4f("u_Model", model);
+                    shader_Models.SetUniform4f("plane", 0, -1, 0 ,Translation_Model.g);
+                    renderer.DrawObj(gDrawObjects1, materials1, textures1, shader_Models);
+                    shader_Models.UnBind();
+                }
+                {
+                    /*unlitObjects*/
+                    glm::mat4 model = glm::mat4(1.0f);
+                    //model = glm::scale(model, glm::vec3(0.1, 0.1, 0.1));
+                    model = glm::scale(model, glm::vec3(10.0f, 10.0f, 10.0f));
+                    model = glm::rotate(model, glm::radians(Rotation_Model), glm::vec3(0.0, 1.0, 0.0));
+                    model = glm::translate(model, Translation_Model);
+                    normalmap.Bind(3);
+                    GLCall(glActiveTexture(GL_TEXTURE7));
+                    GLCall(glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture));
+                    shader_Models.Bind();
+                    shader_Models.SetUniform1f("reflectivity", 0);
+                    shader_Models.SetUniform1i("u_Texture_Normal", 3);
+                    shader_Models.SetUniform1i("skybox", 7);
+                    shader_Models.SetUniformMat4f("u_Projection", proj);
+                    shader_Models.SetUniformMat4f("u_View", view);
+                    shader_Models.SetUniformMat4f("u_Model", model);
+                    shader_Models.SetUniform4f("plane", 0, -1, 0, Translation_Model.g);
+                    renderer.DrawObj(gDrawObjects2, materials2, textures2, shader_Models);
+                    shader_Models.UnBind();
+                }
             }
 
             /*Draw Light*/
@@ -971,18 +1142,6 @@ int main(void) {
                 renderer.Draw(va, ib, shader);
                 shader.UnBind();
             }
-
-            /*Skybox Update*/
-            view = glm::mat4(glm::mat3(view)); // remove translation from the view matrix
-            GLCall(glDepthFunc(GL_LEQUAL));
-            skyboxShader.Bind();
-            skyboxShader.SetUniformMat4f("projection", proj);
-            skyboxShader.SetUniformMat4f("view", view);
-            skyboxVAO.Bind();
-            GLCall(glActiveTexture(GL_TEXTURE0));
-            GLCall(glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture));
-            GLCall(glDrawArrays(GL_TRIANGLES, 0, 36));
-            GLCall(glDepthFunc(GL_LESS));
 
             // second pass
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -1020,6 +1179,9 @@ int main(void) {
                 ImGui::Text("MaterialTest");
                 ImGui::SliderFloat("shineDamper", &ShineDamper, 0.0f, 20.0f);
                 ImGui::SliderFloat("reflectivity", &Reflectivity, 0.0f, 1.0f);
+                // テクスチャを ImGui のウィンドウに描く
+                ImGui::Image((void*)(intptr_t)textureColorbuffer, ImVec2(WINDOW_WIDTH/3,WINDOW_HEIGHT/3 ), ImVec2(0, 1), ImVec2(1, 0));
+
 
                 ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             }
