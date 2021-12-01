@@ -58,7 +58,7 @@ uniform vec4 u_Color;
 uniform int bool_Tex_Dif,bool_Tex_Spec;
 uniform vec3 lightColor;
 uniform float shineDamper;
-uniform float reflectivity;
+uniform float transparency;
 uniform samplerCube skybox;
 
 void main()
@@ -80,7 +80,7 @@ void main()
 	float specularFactor = dot(reflectedLightDirection, unitVectorToCamera);
 	specularFactor = max(specularFactor, 0.0);
 	float dampedFactor = pow(specularFactor, shineDamper);
-	vec3 finalSpecular = dampedFactor * reflectivity * lightColor;
+	vec3 finalSpecular = dampedFactor * transparency * lightColor;
 	if (bool_Tex_Spec == 1)
 		finalSpecular *= vec3(texture(u_Texture_Specular, v_TexCoord));
 
@@ -98,7 +98,7 @@ void main()
 	vec3 I = normalize(ReflectPosition - cameraPos);
 	vec3 R = refract(I, normalize(ReflectNormal), ratio);
 	vec4 RefractColor = vec4(texture(skybox, R).rgb, 1.0);
-	color = reflectivity * RefractColor + (1.0 - reflectivity) * color;
+	color = transparency * RefractColor + (1.0 - transparency) * color;
 
 	/*lighting*/
 	//vec3 light = diffuse + ambient + finalSpecular;

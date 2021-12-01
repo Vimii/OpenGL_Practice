@@ -81,6 +81,9 @@
     <ClCompile Include="vendor\tinyobjloader\tiny_obj_loader.cc">
       <Filter>ソース ファイル\vendor\tinyobjloader</Filter>
     </ClCompile>
+    <ClCompile Include="MasterRenderer.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="vendor\stb_image\stb_image.h">
@@ -983,6 +986,9 @@
     <ClInclude Include="vendor\tinyobjloader\tiny_obj_loader.h">
       <Filter>ソース ファイル\vendor\tinyobjloader</Filter>
     </ClInclude>
+    <ClInclude Include="MasterRenderer.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="res\shaders\practice1.shader">
@@ -1418,6 +1424,12 @@
       <Filter>リソース ファイル\shaders</Filter>
     </None>
     <None Include="res\shaders\objShader_NormalMapping.shader">
+      <Filter>リソース ファイル\shaders</Filter>
+    </None>
+    <None Include="res\shaders\LightShader.shader">
+      <Filter>リソース ファイル\shaders</Filter>
+    </None>
+    <None Include="res\shaders\WaterShader.shader">
       <Filter>リソース ファイル\shaders</Filter>
     </None>
   </ItemGroup>

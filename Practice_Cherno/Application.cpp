@@ -27,7 +27,7 @@
 #define WINDOW_HEIGHT 720.0f
 
 //camera
-Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
+Camera camera(glm::vec3(-640.0f, 100.0f, -200.0f));
 float FOV = 45.0f;
 float lastX = WINDOW_WIDTH / 2.0f, lastY = WINDOW_HEIGHT / 2.0f;
 bool firstMouse = true;
@@ -40,7 +40,7 @@ float lastFrame = 0.0f;
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void processInput(GLFWwindow* window);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
-bool mouseActive = true;
+bool mouseActive = true , debug = true;
 
 
 
@@ -706,7 +706,7 @@ int main(void) {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     /* Create a windowed mode window and its OpenGL context */
-    window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Hello OpenGL", NULL, NULL);
+    window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Secret Cove 3D", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -803,7 +803,7 @@ int main(void) {
         skyboxVAO.addBuffer(skyboxVBO, skyboxLayout);
         
         /*ObjModel*/
-        std::vector<DrawObject> gDrawObjects1, gDrawObjects2;
+        std::vector<DrawObject> gDrawObjects1, gDrawObjects2, gDrawObjects3;
         
         //std::string filepath = "models/sponza_bump/sponza.obj";
         //std::string filepath = "models/dragon.obj";
@@ -811,12 +811,12 @@ int main(void) {
         //std::string filepath = "models/flag.obj";
 
         std::string filepath1 = "models/Cove/Cove.obj";
-        //std::string filepath1 = "models/Cove/grass.obj";
         std::string filepath2 = "models/Cove/unlitObjects.obj";
+        std::string filepath3 = "models/tyra.obj";
 
         float bmin[3], bmax[3];
-        glm::vec3 Translation_Model(0.0f,0.0f,0.0f);
-        float Rotation_Model(0.0f);
+        glm::vec3 Translation_Model(-470.0f,164.0f,535.0f);
+        float Rotation_Model(19.0f);
 
 
         VertexBufferLayout layout_Obj;
@@ -827,7 +827,7 @@ int main(void) {
 
         //Shader shader_Models("res/shaders/objShader.shader");
         Shader shader_Models("res/shaders/objShader_Reflection.shader");
-        //Shader shader_Models("res/shaders/objShader_Refraction.shader");
+        Shader shader_Refraction("res/shaders/objShader_Refraction.shader");
         //Shader shader_Models("res/shaders/objShader_NormalMapping.shader"); //未実装
         shader_Models.Bind();
         shader_Models.SetUniform4f("u_Color", 1.0f, 0.4f, 0.9f, 1.0f);
@@ -845,6 +845,22 @@ int main(void) {
 
         shader_Models.UnBind();
 
+        //refraction shader
+        shader_Refraction.Bind();
+        shader_Refraction.SetUniform4f("u_Color", 1.0f, 0.4f, 0.9f, 1.0f);
+        shader_Refraction.SetUniform1i("bool_Tex_Dif", 0);
+        shader_Refraction.SetUniform1i("bool_Tex_Spec", 0);
+        float transparency = 1.0;
+        shader_Refraction.SetUniform1f("shineDamper", ShineDamper);
+
+
+        /*Refraction Option*/
+        GLCall(glActiveTexture(GL_TEXTURE8));
+        GLCall(glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture));
+        shader_Refraction.SetUniform1i("skybox", cubemapTexture);
+
+        shader_Refraction.UnBind();
+
         std::vector<tinyobj::material_t> materials1;
         std::map<std::string, GLuint> textures1;
         if (false == LoadObjAndConvert(bmin, bmax, &gDrawObjects1, materials1, textures1,
@@ -856,6 +872,13 @@ int main(void) {
         std::map<std::string, GLuint> textures2;
         if (false == LoadObjAndConvert(bmin, bmax, &gDrawObjects2, materials2, textures2,
             filepath2.c_str(), layout_Obj)) {
+            return -1;
+        }
+
+        std::vector<tinyobj::material_t> materials3;
+        std::map<std::string, GLuint> textures3;
+        if (false == LoadObjAndConvert(bmin, bmax, &gDrawObjects3, materials3, textures3,
+            filepath3.c_str(), layout_Obj)) {
             return -1;
         }
 
@@ -871,9 +894,6 @@ int main(void) {
                 if (o.numTriangles == 6) gDrawObjects2[i].material_id = 7;
             }
         }
-
-        Texture normalmap("res/textures/normal_map_Brick.png");
-
 
         /*Box*/
         float positions[] =
@@ -911,33 +931,33 @@ int main(void) {
 
 
         /*Plane*/
-        //float positions[] = {
-        //     -50.0f, -50.0f, 0.0f, 0.0f, // 0
-        //     50.0f, -50.0f, 1.0f, 0.0f, // 1
-        //     50.0f, 50.0f, 1.0f, 1.0f, // 2
-        //     -50.0f, 50.0f, 0.0f, 1.0f  // 3
-        //};
+        float planePositions[] = {
+             -50.0f, -50.0f, 0.0f, 0.0f, // 0
+             50.0f, -50.0f, 1.0f, 0.0f, // 1
+             50.0f, 50.0f, 1.0f, 1.0f, // 2
+             -50.0f, 50.0f, 0.0f, 1.0f  // 3
+        };
 
-        ///*index_datar*/
-        //unsigned int indices[] = {
-        //    0,1,2,
-        //    2,3,0
-        //};
+        /*index_datar*/
+        unsigned int planeIndices[] = {
+            0,1,2,
+            2,3,0
+        };
 
 
         /*make VertexArray*/
         VertexArray va;
-        VertexBuffer vb(positions, sizeof(positions));
+        VertexBuffer vb(planePositions, sizeof(planePositions));
 
         /*make VertexBufferLayout*/
         VertexBufferLayout layout;
-        //layout.Push<float>(2); //Plane_position
-        layout.Push<float>(3); //Box_position
+        layout.Push<float>(2); //Plane_position
+        //layout.Push<float>(3); //Box_position
         layout.Push<float>(2); //uv
         va.addBuffer(vb, layout);
 
         /*make IndexBuffer*/
-        IndexBuffer ib(indices, sizeof(indices));
+        IndexBuffer ib(planeIndices, sizeof(planeIndices));
 
         /*make Shader*/
         Shader shader("res/shaders/practice1.shader");
@@ -953,10 +973,27 @@ int main(void) {
         ib.Unbind();
         shader.UnBind();
 
+        //water
+        VertexArray waterVAO;
+        VertexBuffer waterVBO(planePositions, sizeof(planePositions));
+
+        VertexBufferLayout planeLayout;
+        planeLayout.Push<float>(2); //Plane_position
+        planeLayout.Push<float>(2); //uv
+        waterVAO.addBuffer(waterVBO, planeLayout);
+
+        /*make IndexBuffer*/
+        IndexBuffer planeIB(planeIndices, sizeof(planeIndices));
+
+        /*make Shader*/
+        Shader WaterShader("res/shaders/WaterShader.shader");
+        WaterShader.Bind();
+        WaterShader.SetUniform4f("u_Color", 1.0f, 0.4f, 0.9f, 1.0f);
+
 
         /*Light*/
         glm::vec3 LightColor(1.0f, 1.0f, 1.0f);
-        glm::vec3 LightPosition(-10.0f, 0.0f, 0.0f);
+        glm::vec3 LightPosition(100.0f, 1000.0f, 0.0f);
         shader_Models.SetUniform3f("lightColor",LightColor);
         shader_Models.SetUniform3f("lightPosition", LightPosition);
 
@@ -1018,13 +1055,14 @@ int main(void) {
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         Shader framebufferShader("res/shaders/Framebuffer.shader");
+        bool postprocess = false;
 
         /*util valiables*/        
 
         float r = 0.0f;
         float increment = 0.05f;
-        glm::vec3 translationA(200, 200, 0);
         glm::vec3 translationB(400, 200, 0);
+        float time = 0.0f;
 
         /* Loop until the user closes the window */
         while (!glfwWindowShouldClose(window))
@@ -1038,7 +1076,7 @@ int main(void) {
             /* Render here */
             glBindFramebuffer(GL_FRAMEBUFFER, fbo);
             glEnable(GL_DEPTH_TEST);
-            glEnable(GL_CLIP_DISTANCE0);
+            //glEnable(GL_CLIP_DISTANCE0);
             
             renderer.Clear();
 
@@ -1070,18 +1108,19 @@ int main(void) {
             shader_Models.SetUniform1f("shineDamper", ShineDamper);
             shader_Models.SetUniform1f("reflectivity", Reflectivity);
 
-            /*Draw Object*/
+            
             {
-                {
-                    glm::mat4 model = glm::rotate(glm::mat4(1.0f), glm::radians(-55.0f), translationB);
-                    model = glm::translate(model, translationB);
-                    glm::mat4 mvp = proj * view * model;
-                    texture.Bind();
-                    shader.Bind();
-                    shader.SetUniformMat4f("u_MVP", mvp);
-                    renderer.Draw(va, ib, shader);
-                    shader.UnBind();
-                }
+                /*Draw Object*/
+                //{
+                //    glm::mat4 model = glm::rotate(glm::mat4(1.0f), glm::radians(-55.0f), translationB);
+                //    model = glm::translate(model, translationB);
+                //    glm::mat4 mvp = proj * view * model;
+                //    texture.Bind();
+                //    shader.Bind();
+                //    shader.SetUniformMat4f("u_MVP", mvp);
+                //    renderer.Draw(va, ib, shader);
+                //    shader.UnBind();
+                //}
                 //{
                 //    glm::mat4 model = glm::translate(glm::mat4(1.0f), translationB);
                 //    glm::mat4 mvp = proj * view * model;
@@ -1093,9 +1132,8 @@ int main(void) {
                     glm::mat4 model = glm::mat4(1.0f);
                     //model = glm::scale(model, glm::vec3(0.1, 0.1, 0.1));
                     model = glm::scale(model, glm::vec3(10.0f, 10.0f, 10.0f));
-                    model = glm::rotate(model, glm::radians(Rotation_Model), glm::vec3(0.0, 1.0, 0.0));
-                    model = glm::translate(model, Translation_Model);
-                    normalmap.Bind(3);
+                    model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(0.0, 1.0, 0.0));
+                    //model = glm::translate(model, Translation_Model);
                     GLCall(glActiveTexture(GL_TEXTURE7));
                     GLCall(glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture));
                     shader_Models.Bind();
@@ -1113,9 +1151,8 @@ int main(void) {
                     glm::mat4 model = glm::mat4(1.0f);
                     //model = glm::scale(model, glm::vec3(0.1, 0.1, 0.1));
                     model = glm::scale(model, glm::vec3(10.0f, 10.0f, 10.0f));
-                    model = glm::rotate(model, glm::radians(Rotation_Model), glm::vec3(0.0, 1.0, 0.0));
-                    model = glm::translate(model, Translation_Model);
-                    normalmap.Bind(3);
+                    model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(0.0, 1.0, 0.0));
+                    //model = glm::translate(model, Translation_Model);
                     GLCall(glActiveTexture(GL_TEXTURE7));
                     GLCall(glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture));
                     shader_Models.Bind();
@@ -1128,6 +1165,42 @@ int main(void) {
                     shader_Models.SetUniform4f("plane", 0, -1, 0, Translation_Model.g);
                     renderer.DrawObj(gDrawObjects2, materials2, textures2, shader_Models);
                     shader_Models.UnBind();
+                }
+                {
+                    glm::mat4 model = glm::scale(glm::mat4(1.0f), glm::vec3(10.0f,10.0f,10.0f));
+                    model = glm::rotate(model, glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+                    //model = glm::translate(model, translationB);
+                    glm::mat4 mvp = proj * view * model;
+                    WaterShader.Bind();
+                    WaterShader.SetUniformMat4f("u_Projection", proj);
+                    WaterShader.SetUniformMat4f("u_View", view);
+                    WaterShader.SetUniformMat4f("u_Model", model);
+                    WaterShader.SetUniform1f("u_time", time);
+                    WaterShader.SetUniform3f("cPos", camera.Position);
+                    WaterShader.SetUniform3f("cDir", camera.Front);
+                    WaterShader.SetUniform3f("cUp", camera.Up);
+                    WaterShader.SetUniform2f("u_resolution", WINDOW_WIDTH, WINDOW_HEIGHT);
+                    renderer.Draw(waterVAO, planeIB, WaterShader);
+                    WaterShader.UnBind();
+                }
+                {
+                    glm::mat4 model = glm::mat4(1.0f);
+                    model = glm::translate(model, Translation_Model);
+                    model = glm::scale(model, glm::vec3(100.0f, 100.0f, 100.0f));
+                    model = glm::rotate(model, glm::radians(Rotation_Model), glm::vec3(0.0, 1.0, 0.0));
+                    GLCall(glActiveTexture(GL_TEXTURE7));
+                    GLCall(glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture));
+                    shader_Refraction.Bind();
+                    shader_Refraction.SetUniform1i("u_Texture_Normal", 3);
+                    shader_Refraction.SetUniform1i("skybox", 7);
+                    shader_Refraction.SetUniformMat4f("u_Projection", proj);
+                    shader_Refraction.SetUniformMat4f("u_View", view);
+                    shader_Refraction.SetUniformMat4f("u_Model", model);
+                    shader_Refraction.SetUniform1f("transparency", transparency);
+                    shader_Refraction.SetUniform1f("shineDamper", ShineDamper);
+                    shader_Refraction.SetUniform4f("plane", 0, -1, 0, Translation_Model.g);
+                    renderer.DrawObj(gDrawObjects3, materials3, textures3, shader_Refraction);
+                    shader_Refraction.UnBind();
                 }
             }
 
@@ -1154,6 +1227,9 @@ int main(void) {
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
             framebufferShader.SetUniform1i("screenTexture", 0);
+            if(postprocess) framebufferShader.SetUniform1i("postprocess", 1);
+            else framebufferShader.SetUniform1i("postprocess", 0);
+
             glDrawArrays(GL_TRIANGLES, 0, 6);
 
             /*Update valiables*/
@@ -1164,31 +1240,37 @@ int main(void) {
 
             r += increment;
 
-            {
-                ImGui::Text("Camera");
-                ImGui::SliderFloat("FOV", &FOV, 0.0f,90.0f);
-                ImGui::SliderFloat3("Translation A", &translationA.x, 0.0f, 1000.0f);
-                ImGui::SliderFloat3("Translation B", &translationB.x, 0.0f, 1000.0f);
-                ImGui::Text("Light");
-                ImGui::SliderFloat3("Color", &LightColor.x, 0.0f, 10.0f);
-                ImGui::SliderFloat3("Position", &LightPosition.x, -100.0f, 100.0f);
+            time += 0.1f;
 
-                ImGui::Text("Model");
-                ImGui::SliderFloat3("Translation", &Translation_Model.x, -100.0f, 100.0f);
-                ImGui::SliderFloat("Rotation", &Rotation_Model, -360.0f, 360.0f);
-                ImGui::Text("MaterialTest");
-                ImGui::SliderFloat("shineDamper", &ShineDamper, 0.0f, 20.0f);
-                ImGui::SliderFloat("reflectivity", &Reflectivity, 0.0f, 1.0f);
-                // テクスチャを ImGui のウィンドウに描く
-                ImGui::Image((void*)(intptr_t)textureColorbuffer, ImVec2(WINDOW_WIDTH/3,WINDOW_HEIGHT/3 ), ImVec2(0, 1), ImVec2(1, 0));
+            if (debug) {
+                {
+                    ImGui::Text("Camera");
+                    ImGui::SliderFloat("FOV", &FOV, 0.0f, 90.0f);
+                    ImGui::SliderFloat3("CameraPosition", &camera.Position.x, 0.0f, 1000.0f);
+                    ImGui::Text("Light");
+                    ImGui::SliderFloat3("Color", &LightColor.x, 0.0f, 10.0f);
+                    ImGui::SliderFloat3("Position", &LightPosition.x, -1000.0f, 1000.0f);
+
+                    ImGui::Text("Model");
+                    ImGui::SliderFloat3("Translation", &Translation_Model.x, -1000.0f, 1000.0f);
+                    ImGui::SliderFloat("Rotation", &Rotation_Model, -360.0f, 360.0f);
+                    ImGui::Text("MaterialTest");
+                    ImGui::SliderFloat("shineDamper", &ShineDamper, 0.0f, 20.0f);
+                    ImGui::SliderFloat("reflectivity", &Reflectivity, 0.0f, 1.0f);
+                    ImGui::SliderFloat("transparency", &transparency, 0.0f, 1.0f);
+
+                    ImGui::Text("PostProcess");
+                    ImGui::Checkbox("PostProcess", &postprocess);
+                    ImGui::Image((void*)(intptr_t)textureColorbuffer, ImVec2(WINDOW_WIDTH / 3, WINDOW_HEIGHT / 3), ImVec2(0, 1), ImVec2(1, 0));
 
 
-                ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+                    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+                }
             }
 
-            ImGui::Render();
-            ImGui_ImplGlfwGL3_RenderDrawData(ImGui::GetDrawData());
-
+                ImGui::Render();
+                ImGui_ImplGlfwGL3_RenderDrawData(ImGui::GetDrawData());
+            
             /* Swap front and back buffers */
             glfwSwapBuffers(window);
 
@@ -1252,6 +1334,14 @@ void processInput(GLFWwindow* window)
     {
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         mouseActive = true;
+    }
+    if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS)
+    {
+        debug = false;
+    }
+    if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS)
+    {
+        debug = true;
     }
 }
 
