@@ -24,7 +24,7 @@ void main()
 
 in vec4 worldPosition;
 
-layout(location = 0) out vec4 gl_FragColor;
+layout(location = 0) out vec4 FragColor;
 
 uniform vec4 u_Color;
 uniform vec2 u_resolution;
@@ -124,5 +124,5 @@ void main()
         color = vec3(0.0);
     }
 
-    gl_FragColor = vec4(color, 0.3);
+    FragColor = vec4(color, 0.3);
 }
