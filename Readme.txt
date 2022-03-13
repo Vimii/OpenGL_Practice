@@ -33,6 +33,3 @@ glfw3.lib;opengl32.lib;User32.lib;Gdi32.lib;Shell32.lib;glew32s.lib;
 
 環境構築は以下の動画を参考にしたので参照してください。
 https://youtu.be/OR4fNpBjmq8
-
-
-他のコンパイル方法を試す時間がありませんでした。申し訳ございません。
