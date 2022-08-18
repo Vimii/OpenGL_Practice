@@ -43,6 +43,7 @@ public:
     Camera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f), float yaw = YAW, float pitch = PITCH);
     Camera(float posX, float posY, float posZ, float upX, float upY, float upZ, float yaw, float pitch);
     glm::mat4 GetViewMatrix();
+    glm::mat4 GetDofViewMatrix(const int index, const float focus, const float aperture, const int sampleNum);
     void ProcessKeyboard(Camera_Key_Input input, float deltaTime);
     void ProcessMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch = true);
     void SetZoom(float zoom);

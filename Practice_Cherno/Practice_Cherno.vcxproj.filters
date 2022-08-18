@@ -1432,6 +1432,12 @@
     <None Include="res\shaders\WaterShader.shader">
       <Filter>リソース ファイル\shaders</Filter>
     </None>
+    <None Include="DoF.shader">
+      <Filter>リソース ファイル\shaders</Filter>
+    </None>
+    <None Include="res\shaders\DoF.shader">
+      <Filter>リソース ファイル\shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="res\textures\gold-dollar.png">

@@ -1054,8 +1054,35 @@ int main(void) {
             std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+        /*framebuffer for dof*/
+        unsigned int abo;
+        glGenFramebuffers(1, &abo);
+        glBindFramebuffer(GL_FRAMEBUFFER, abo);
+
+        unsigned int textureAccumbuffer;
+        glGenTextures(1, &textureAccumbuffer);
+        glBindTexture(GL_TEXTURE_2D, textureAccumbuffer);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, WINDOW_WIDTH, WINDOW_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureAccumbuffer, 0);
+
+        unsigned int rbodof;
+        glGenRenderbuffers(1, &rbodof);
+        glBindRenderbuffer(GL_RENDERBUFFER, rbodof);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, WINDOW_WIDTH, WINDOW_HEIGHT);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbodof);
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+            std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
         Shader framebufferShader("res/shaders/Framebuffer.shader");
-        bool postprocess = false;
+        bool postprocess = true;
+        Shader depthofFieldShader("res/shaders/DoF.shader");
+        float focus = 100.f; 
+        float aperture = 1.0f;
+        int n = 10; // number of frames to accumulate
 
         /*util valiables*/        
 
@@ -1073,164 +1100,264 @@ int main(void) {
 
             processInput(window);
 
-            /* Render here */
-            glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-            glEnable(GL_DEPTH_TEST);
-            //glEnable(GL_CLIP_DISTANCE0);
-            
-            renderer.Clear();
-
             ImGui_ImplGlfwGL3_NewFrame();
-
-            /*View Update*/
-            camera.SetZoom(FOV);
-            glm::mat4 proj = glm::perspective(glm::radians(camera.Zoom), WINDOW_WIDTH / WINDOW_HEIGHT, 0.1f, 2000.0f);
-            glm::mat4 view = camera.GetViewMatrix();
-
-            /*Skybox Update*/
-            glm::mat4 skyboxView = glm::mat4(glm::mat3(view)); // remove translation from the view matrix
-            GLCall(glDepthFunc(GL_LEQUAL));
-            skyboxShader.Bind();
-            skyboxShader.SetUniformMat4f("projection", proj);
-            skyboxShader.SetUniformMat4f("view",skyboxView);
-            skyboxVAO.Bind();
-            GLCall(glActiveTexture(GL_TEXTURE0));
-            GLCall(glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture));
-            GLCall(glDrawArrays(GL_TRIANGLES, 0, 36));
-            GLCall(glDepthFunc(GL_LESS));
-
-            /*light Update*/
-            shader_Models.Bind();
-            shader_Models.SetUniform3f("lightPosition", LightPosition);
-            shader_Models.SetUniform3f("lightColor", LightColor);
-            
-            /*material Update*/
-            shader_Models.SetUniform1f("shineDamper", ShineDamper);
-            shader_Models.SetUniform1f("reflectivity", Reflectivity);
-
-            
+            for (size_t i = 0; i <= n; i++)
             {
-                /*Draw Object*/
-                //{
-                //    glm::mat4 model = glm::rotate(glm::mat4(1.0f), glm::radians(-55.0f), translationB);
-                //    model = glm::translate(model, translationB);
-                //    glm::mat4 mvp = proj * view * model;
-                //    texture.Bind();
-                //    shader.Bind();
-                //    shader.SetUniformMat4f("u_MVP", mvp);
-                //    renderer.Draw(va, ib, shader);
-                //    shader.UnBind();
-                //}
-                //{
-                //    glm::mat4 model = glm::translate(glm::mat4(1.0f), translationB);
-                //    glm::mat4 mvp = proj * view * model;
-                //    shader.Bind();
-                //    shader.SetUniformMat4f("u_MVP", mvp);
-                //    renderer.Draw(va, ib, shader);
-                //}
+                //drawScene
                 {
-                    glm::mat4 model = glm::mat4(1.0f);
-                    //model = glm::scale(model, glm::vec3(0.1, 0.1, 0.1));
-                    model = glm::scale(model, glm::vec3(10.0f, 10.0f, 10.0f));
-                    model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(0.0, 1.0, 0.0));
-                    //model = glm::translate(model, Translation_Model);
-                    GLCall(glActiveTexture(GL_TEXTURE7));
+                    /* Render here */
+                    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+                    glEnable(GL_DEPTH_TEST);
+                    //glEnable(GL_CLIP_DISTANCE0);
+
+                    renderer.Clear();
+
+                    /*View Update*/
+                    camera.SetZoom(FOV);
+                    glm::mat4 proj = glm::perspective(glm::radians(camera.Zoom), WINDOW_WIDTH / WINDOW_HEIGHT, 0.1f, 2000.0f);
+                    //glm::mat4 view = camera.GetViewMatrix();
+                    glm::mat4 view = camera.GetDofViewMatrix(i,focus, aperture,n);
+
+                    /*Skybox Update*/
+                    glm::mat4 skyboxView = glm::mat4(glm::mat3(view)); // remove translation from the view matrix
+                    GLCall(glDepthFunc(GL_LEQUAL));
+                    skyboxShader.Bind();
+                    skyboxShader.SetUniformMat4f("projection", proj);
+                    skyboxShader.SetUniformMat4f("view", skyboxView);
+                    skyboxVAO.Bind();
+                    GLCall(glActiveTexture(GL_TEXTURE0));
                     GLCall(glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture));
+                    GLCall(glDrawArrays(GL_TRIANGLES, 0, 36));
+                    GLCall(glDepthFunc(GL_LESS));
+
+                    /*light Update*/
                     shader_Models.Bind();
-                    shader_Models.SetUniform1i("u_Texture_Normal", 3);
-                    shader_Models.SetUniform1i("skybox", 7);
-                    shader_Models.SetUniformMat4f("u_Projection", proj);
-                    shader_Models.SetUniformMat4f("u_View", view);
-                    shader_Models.SetUniformMat4f("u_Model", model);
-                    shader_Models.SetUniform4f("plane", 0, -1, 0 ,Translation_Model.g);
-                    renderer.DrawObj(gDrawObjects1, materials1, textures1, shader_Models);
-                    shader_Models.UnBind();
+                    shader_Models.SetUniform3f("lightPosition", LightPosition);
+                    shader_Models.SetUniform3f("lightColor", LightColor);
+
+                    /*material Update*/
+                    shader_Models.SetUniform1f("shineDamper", ShineDamper);
+                    shader_Models.SetUniform1f("reflectivity", Reflectivity);
+
+
+                    {
+                        /*Draw Object*/
+                        //{
+                        //    glm::mat4 model = glm::rotate(glm::mat4(1.0f), glm::radians(-55.0f), translationB);
+                        //    model = glm::translate(model, translationB);
+                        //    glm::mat4 mvp = proj * view * model;
+                        //    texture.Bind();
+                        //    shader.Bind();
+                        //    shader.SetUniformMat4f("u_MVP", mvp);
+                        //    renderer.Draw(va, ib, shader);
+                        //    shader.UnBind();
+                        //}
+                        //{
+                        //    glm::mat4 model = glm::translate(glm::mat4(1.0f), translationB);
+                        //    glm::mat4 mvp = proj * view * model;
+                        //    shader.Bind();
+                        //    shader.SetUniformMat4f("u_MVP", mvp);
+                        //    renderer.Draw(va, ib, shader);
+                        //}
+                        {
+                            glm::mat4 model = glm::mat4(1.0f);
+                            //model = glm::scale(model, glm::vec3(0.1, 0.1, 0.1));
+                            model = glm::scale(model, glm::vec3(10.0f, 10.0f, 10.0f));
+                            model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(0.0, 1.0, 0.0));
+                            //model = glm::translate(model, Translation_Model);
+                            GLCall(glActiveTexture(GL_TEXTURE7));
+                            GLCall(glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture));
+                            shader_Models.Bind();
+                            shader_Models.SetUniform1i("u_Texture_Normal", 3);
+                            shader_Models.SetUniform1i("skybox", 7);
+                            shader_Models.SetUniformMat4f("u_Projection", proj);
+                            shader_Models.SetUniformMat4f("u_View", view);
+                            shader_Models.SetUniformMat4f("u_Model", model);
+                            shader_Models.SetUniform4f("plane", 0, -1, 0, Translation_Model.g);
+                            renderer.DrawObj(gDrawObjects1, materials1, textures1, shader_Models);
+                            shader_Models.UnBind();
+                        }
+                        {
+                            /*unlitObjects*/
+                            glm::mat4 model = glm::mat4(1.0f);
+                            //model = glm::scale(model, glm::vec3(0.1, 0.1, 0.1));
+                            model = glm::scale(model, glm::vec3(10.0f, 10.0f, 10.0f));
+                            model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(0.0, 1.0, 0.0));
+                            //model = glm::translate(model, Translation_Model);
+                            GLCall(glActiveTexture(GL_TEXTURE7));
+                            GLCall(glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture));
+                            shader_Models.Bind();
+                            shader_Models.SetUniform1f("reflectivity", 0);
+                            shader_Models.SetUniform1i("u_Texture_Normal", 3);
+                            shader_Models.SetUniform1i("skybox", 7);
+                            shader_Models.SetUniformMat4f("u_Projection", proj);
+                            shader_Models.SetUniformMat4f("u_View", view);
+                            shader_Models.SetUniformMat4f("u_Model", model);
+                            shader_Models.SetUniform4f("plane", 0, -1, 0, Translation_Model.g);
+                            renderer.DrawObj(gDrawObjects2, materials2, textures2, shader_Models);
+                            shader_Models.UnBind();
+                        }
+                        {
+                            glm::mat4 model = glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 10.0f, 10.0f));
+                            model = glm::rotate(model, glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+                            //model = glm::translate(model, translationB);
+                            glm::mat4 mvp = proj * view * model;
+                            WaterShader.Bind();
+                            WaterShader.SetUniformMat4f("u_Projection", proj);
+                            WaterShader.SetUniformMat4f("u_View", view);
+                            WaterShader.SetUniformMat4f("u_Model", model);
+                            WaterShader.SetUniform1f("u_time", time);
+                            WaterShader.SetUniform3f("cPos", camera.Position);
+                            WaterShader.SetUniform3f("cDir", camera.Front);
+                            WaterShader.SetUniform3f("cUp", camera.Up);
+                            WaterShader.SetUniform2f("u_resolution", WINDOW_WIDTH, WINDOW_HEIGHT);
+                            renderer.Draw(waterVAO, planeIB, WaterShader);
+                            WaterShader.UnBind();
+                        }
+                        {
+                            glm::mat4 model = glm::mat4(1.0f);
+                            model = glm::translate(model, Translation_Model);
+                            model = glm::scale(model, glm::vec3(100.0f, 100.0f, 100.0f));
+                            model = glm::rotate(model, glm::radians(Rotation_Model), glm::vec3(0.0, 1.0, 0.0));
+                            GLCall(glActiveTexture(GL_TEXTURE7));
+                            GLCall(glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture));
+                            shader_Refraction.Bind();
+                            shader_Refraction.SetUniform1i("u_Texture_Normal", 3);
+                            shader_Refraction.SetUniform1i("skybox", 7);
+                            shader_Refraction.SetUniformMat4f("u_Projection", proj);
+                            shader_Refraction.SetUniformMat4f("u_View", view);
+                            shader_Refraction.SetUniformMat4f("u_Model", model);
+                            shader_Refraction.SetUniform1f("transparency", transparency);
+                            shader_Refraction.SetUniform1f("shineDamper", ShineDamper);
+                            shader_Refraction.SetUniform4f("plane", 0, -1, 0, Translation_Model.g);
+                            renderer.DrawObj(gDrawObjects3, materials3, textures3, shader_Refraction);
+                            shader_Refraction.UnBind();
+                        }
+                    }
+
+                    /*Draw Light*/
+                    {
+                        glm::mat4 model = glm::translate(glm::mat4(1.0f), LightPosition);
+                        model = glm::scale(model, glm::vec3(0.01, 0.01, 0.01));
+                        glm::mat4 mvp = proj * view * model;
+                        shader.Bind();
+                        shader.SetUniform3f("u_Color", LightColor);
+                        shader.SetUniformMat4f("u_MVP", mvp);
+                        renderer.Draw(va, ib, shader);
+                        shader.UnBind();
+                    }
+
+
                 }
+
+                // second pass
+                glBindFramebuffer(GL_FRAMEBUFFER, 0);
+                glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+                glClear(GL_COLOR_BUFFER_BIT);
+
+                framebufferShader.Bind();
+                glBindVertexArray(quadVAO);
+                glDisable(GL_DEPTH_TEST);
+                glActiveTexture(GL_TEXTURE0);;
+                glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
+                framebufferShader.SetUniform1i("screenTexture", 0);
+                if (postprocess) framebufferShader.SetUniform1i("postprocess", 1);
+                else framebufferShader.SetUniform1i("postprocess", 0);
+
+
+                //Dof処理
+                if (i == 0)
                 {
-                    /*unlitObjects*/
-                    glm::mat4 model = glm::mat4(1.0f);
-                    //model = glm::scale(model, glm::vec3(0.1, 0.1, 0.1));
-                    model = glm::scale(model, glm::vec3(10.0f, 10.0f, 10.0f));
-                    model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(0.0, 1.0, 0.0));
-                    //model = glm::translate(model, Translation_Model);
-                    GLCall(glActiveTexture(GL_TEXTURE7));
-                    GLCall(glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture));
-                    shader_Models.Bind();
-                    shader_Models.SetUniform1f("reflectivity", 0);
-                    shader_Models.SetUniform1i("u_Texture_Normal", 3);
-                    shader_Models.SetUniform1i("skybox", 7);
-                    shader_Models.SetUniformMat4f("u_Projection", proj);
-                    shader_Models.SetUniformMat4f("u_View", view);
-                    shader_Models.SetUniformMat4f("u_Model", model);
-                    shader_Models.SetUniform4f("plane", 0, -1, 0, Translation_Model.g);
-                    renderer.DrawObj(gDrawObjects2, materials2, textures2, shader_Models);
-                    shader_Models.UnBind();
+                    //aboに最初のレンダリング結果を入れる
+                    glBindFramebuffer(GL_FRAMEBUFFER, abo);
+
+                    glDrawArrays(GL_TRIANGLES, 0, 6);
+
+                    framebufferShader.UnBind();
+
+                    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+                    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+                    glClear(GL_COLOR_BUFFER_BIT);
+
+                    depthofFieldShader.Bind();
+                    glBindVertexArray(quadVAO);
+                    glDisable(GL_DEPTH_TEST);
+                    depthofFieldShader.SetUniform1i("first", i);
+                    depthofFieldShader.SetUniform1i("sampleNum", n);
+                    glActiveTexture(GL_TEXTURE0);
+                    glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
+                    depthofFieldShader.SetUniform1i("screenTexture", 0);
+                    glActiveTexture(GL_TEXTURE1);
+                    glBindTexture(GL_TEXTURE_2D, textureAccumbuffer);
+                    depthofFieldShader.SetUniform1i("accumTexture", 1);
+
+                    
+                    glBindFramebuffer(GL_FRAMEBUFFER, abo);
+                    glDrawArrays(GL_TRIANGLES, 0, 6);
                 }
+                else
                 {
-                    glm::mat4 model = glm::scale(glm::mat4(1.0f), glm::vec3(10.0f,10.0f,10.0f));
-                    model = glm::rotate(model, glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-                    //model = glm::translate(model, translationB);
-                    glm::mat4 mvp = proj * view * model;
-                    WaterShader.Bind();
-                    WaterShader.SetUniformMat4f("u_Projection", proj);
-                    WaterShader.SetUniformMat4f("u_View", view);
-                    WaterShader.SetUniformMat4f("u_Model", model);
-                    WaterShader.SetUniform1f("u_time", time);
-                    WaterShader.SetUniform3f("cPos", camera.Position);
-                    WaterShader.SetUniform3f("cDir", camera.Front);
-                    WaterShader.SetUniform3f("cUp", camera.Up);
-                    WaterShader.SetUniform2f("u_resolution", WINDOW_WIDTH, WINDOW_HEIGHT);
-                    renderer.Draw(waterVAO, planeIB, WaterShader);
-                    WaterShader.UnBind();
+                    //aboにfboの結果を加算して入れていく
+                    glDrawArrays(GL_TRIANGLES, 0, 6);
+
+                    framebufferShader.UnBind();
+
+                    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+                    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+                    glClear(GL_COLOR_BUFFER_BIT);
+
+
+                    depthofFieldShader.Bind();
+                    glBindVertexArray(quadVAO);
+                    glDisable(GL_DEPTH_TEST);
+                    depthofFieldShader.SetUniform1i("first", i);
+                    depthofFieldShader.SetUniform1i("sampleNum", n);
+                    glActiveTexture(GL_TEXTURE0);
+                    glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
+                    depthofFieldShader.SetUniform1i("screenTexture", 0);
+                    glActiveTexture(GL_TEXTURE1);
+                    glBindTexture(GL_TEXTURE_2D, textureAccumbuffer);
+                    depthofFieldShader.SetUniform1i("accumTexture", 1);
+
+
+                    glBindFramebuffer(GL_FRAMEBUFFER, abo);
+                    glDrawArrays(GL_TRIANGLES, 0, 6);
+
+                    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+                    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+                    glClear(GL_COLOR_BUFFER_BIT);
+
                 }
-                {
-                    glm::mat4 model = glm::mat4(1.0f);
-                    model = glm::translate(model, Translation_Model);
-                    model = glm::scale(model, glm::vec3(100.0f, 100.0f, 100.0f));
-                    model = glm::rotate(model, glm::radians(Rotation_Model), glm::vec3(0.0, 1.0, 0.0));
-                    GLCall(glActiveTexture(GL_TEXTURE7));
-                    GLCall(glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture));
-                    shader_Refraction.Bind();
-                    shader_Refraction.SetUniform1i("u_Texture_Normal", 3);
-                    shader_Refraction.SetUniform1i("skybox", 7);
-                    shader_Refraction.SetUniformMat4f("u_Projection", proj);
-                    shader_Refraction.SetUniformMat4f("u_View", view);
-                    shader_Refraction.SetUniformMat4f("u_Model", model);
-                    shader_Refraction.SetUniform1f("transparency", transparency);
-                    shader_Refraction.SetUniform1f("shineDamper", ShineDamper);
-                    shader_Refraction.SetUniform4f("plane", 0, -1, 0, Translation_Model.g);
-                    renderer.DrawObj(gDrawObjects3, materials3, textures3, shader_Refraction);
-                    shader_Refraction.UnBind();
+
+                if (i >= n) {
+                    //最後のサンプルを加算し表示
+                    glDrawArrays(GL_TRIANGLES, 0, 6);
+
+                    framebufferShader.UnBind();
+
+                    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+                    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+                    glClear(GL_COLOR_BUFFER_BIT);
+
+                    depthofFieldShader.Bind();
+                    glBindVertexArray(quadVAO);
+                    glDisable(GL_DEPTH_TEST);
+                    depthofFieldShader.SetUniform1i("first", i);
+                    depthofFieldShader.SetUniform1i("sampleNum", n);
+                    glActiveTexture(GL_TEXTURE0);
+                    glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
+                    depthofFieldShader.SetUniform1i("screenTexture", 0);
+                    glActiveTexture(GL_TEXTURE1);
+                    glBindTexture(GL_TEXTURE_2D, textureAccumbuffer);
+                    depthofFieldShader.SetUniform1i("accumTexture", 1);
+
+                    glDrawArrays(GL_TRIANGLES, 0, 6);
                 }
+
+
             }
 
-            /*Draw Light*/
-            {
-                glm::mat4 model = glm::translate(glm::mat4(1.0f), LightPosition);
-                model = glm::scale(model, glm::vec3(0.01, 0.01, 0.01));
-                glm::mat4 mvp = proj * view * model;
-                shader.Bind();
-                shader.SetUniform3f("u_Color", LightColor);
-                shader.SetUniformMat4f("u_MVP", mvp);
-                renderer.Draw(va, ib, shader);
-                shader.UnBind();
-            }
-
-            // second pass
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            glClearColor(1.0f, 1.0f, 1.0f,1.0f);
-            glClear(GL_COLOR_BUFFER_BIT);
-
-            framebufferShader.Bind();
-            glBindVertexArray(quadVAO);
-            glDisable(GL_DEPTH_TEST);
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
-            framebufferShader.SetUniform1i("screenTexture", 0);
-            if(postprocess) framebufferShader.SetUniform1i("postprocess", 1);
-            else framebufferShader.SetUniform1i("postprocess", 0);
-
-            glDrawArrays(GL_TRIANGLES, 0, 6);
+            
 
             /*Update valiables*/
             if (r > 1.0f)
@@ -1243,7 +1370,7 @@ int main(void) {
             time += 0.1f;
 
             if (debug) {
-                {
+                
                     ImGui::Text("Camera");
                     ImGui::SliderFloat("FOV", &FOV, 0.0f, 90.0f);
                     ImGui::SliderFloat3("CameraPosition", &camera.Position.x, 0.0f, 1000.0f);
@@ -1261,11 +1388,17 @@ int main(void) {
 
                     ImGui::Text("PostProcess");
                     ImGui::Checkbox("PostProcess", &postprocess);
+
+                    ImGui::Text("DepthofField");
+                    ImGui::SliderInt("sanples", &n, 1, 100);
+                    ImGui::SliderFloat("Aperture", &aperture, 0.001f, 1.0f);
+                    ImGui::SliderFloat("Focus Distance", &focus,10.0f,1000.0f);
+
                     ImGui::Image((void*)(intptr_t)textureColorbuffer, ImVec2(WINDOW_WIDTH / 3, WINDOW_HEIGHT / 3), ImVec2(0, 1), ImVec2(1, 0));
 
 
                     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-                }
+                
             }
 
                 ImGui::Render();

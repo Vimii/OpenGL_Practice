@@ -477,6 +477,8 @@
     <ClInclude Include="VertexBufferLayout.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="DoF.shader" />
+    <None Include="res\shaders\DoF.shader" />
     <None Include="res\shaders\Framebuffer.shader" />
     <None Include="res\shaders\LightShader.shader" />
     <None Include="res\shaders\objShader_NormalMapping.shader" />

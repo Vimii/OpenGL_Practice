@@ -24,6 +24,12 @@ glm::mat4 Camera::GetViewMatrix()
     return glm::lookAt(Position, Position + Front, Up);
 }
 
+glm::mat4 Camera::GetDofViewMatrix(const int index, const float focus, const float aperture, const int sampleNum)
+{
+    glm::vec3 bokeh = Right * (float)cos(index * 2.0f * 3.141592 / sampleNum) + Up * (float)sin(index * 2.0f * 3.141592 / sampleNum);
+    return glm::lookAt(Position + aperture * bokeh, Position + Front * focus, Up);
+}
+
 void Camera::ProcessKeyboard(Camera_Key_Input input, float deltaTime)
 {
     float velocity = MovementSpeed * deltaTime;
