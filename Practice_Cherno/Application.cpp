@@ -689,7 +689,10 @@ unsigned int loadCubemap(std::string dir, std::vector<std::string> faces)
     return textureID;
 }
 
-
+float gauss(float x, float y, float sigma)
+{
+    return  1.0f / (2.0f * 3.141592 * sigma * sigma) * exp(-(x * x + y * y) / (2.0f * sigma * sigma));
+}
 
 int main(void) {
 
@@ -1080,6 +1083,57 @@ int main(void) {
 
         Shader framebufferShader("res/shaders/Framebuffer.shader");
         bool postprocess = false;
+        
+        //postprocess
+
+        //bloom
+        unsigned int splitFBO;
+        glGenFramebuffers(1, &splitFBO);
+        glBindFramebuffer(GL_FRAMEBUFFER, splitFBO);
+        unsigned int splitBuffers[2];
+        glGenTextures(2, splitBuffers);
+        for (unsigned int i = 0; i < 2; i++)
+        {
+            glBindTexture(GL_TEXTURE_2D, splitBuffers[i]);
+            glTexImage2D(
+                GL_TEXTURE_2D, 0, GL_RGBA16F, WINDOW_WIDTH, WINDOW_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, splitBuffers[i], 0);
+        }
+        unsigned int attachments[2] = { GL_COLOR_ATTACHMENT0,GL_COLOR_ATTACHMENT1 };
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+            std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        unsigned int bloomFBO[2];
+        unsigned int bloomBuffers[2];
+        glGenFramebuffers(2, bloomFBO);
+        glGenTextures(2, bloomBuffers);
+        for (size_t i = 0; i < 2; i++)
+        {
+            glBindFramebuffer(GL_FRAMEBUFFER, bloomFBO[i]);
+            glBindTexture(GL_TEXTURE_2D, bloomBuffers[i]);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WINDOW_WIDTH, WINDOW_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glFramebufferTexture2D(
+                GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, bloomBuffers[i], 0
+            );
+        }
+
+        Shader brightSplitShader("res/shaders/bloomBrightColorSplitter.shader");
+        float bloomThreshold = 0.7;
+
+        Shader blurShader("res/shaders/Blur.shader");
+        int bloomBlurAmount = 10;
+
+        Shader bloomShader("res/shaders/bloom.shader");
+        float bloomIntensity = 1.0f;
 
         /*util valiables*/        
 
@@ -1248,14 +1302,68 @@ int main(void) {
             glClearColor(1.0f, 1.0f, 1.0f,1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
 
-            framebufferShader.Bind();
+            //Bloom Effect
+
+            brightSplitShader.Bind();
             glBindVertexArray(quadVAO);
             glDisable(GL_DEPTH_TEST);
             glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, textureDepthbuffer);
-            framebufferShader.SetUniform1i("screenTexture", 0);
-            if(postprocess) framebufferShader.SetUniform1i("postprocess", 1);
-            else framebufferShader.SetUniform1i("postprocess", 0);
+            glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
+            brightSplitShader.SetUniform1i("colorTexture", 0);
+            brightSplitShader.SetUniform1f("threshold", bloomThreshold);
+            
+            glBindFramebuffer(GL_FRAMEBUFFER, splitFBO);
+            glDrawBuffers(2, attachments);
+
+            glDrawArrays(GL_TRIANGLES,0,6);
+
+            glBindFramebuffer(GL_FRAMEBUFFER,0);
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
+
+            bool horizontal = true, first_iteration = true;
+            blurShader.Bind();
+            for (size_t i = 0; i < bloomBlurAmount; i++)
+            {
+                glBindFramebuffer(GL_FRAMEBUFFER, bloomFBO[horizontal]);
+                blurShader.SetUniform1i("horizontal", horizontal);
+                glBindTexture(GL_TEXTURE_2D, first_iteration ? splitBuffers[1] : bloomBuffers[!horizontal]);
+                blurShader.SetUniform1i("image", 0);
+                glBindVertexArray(quadVAO);
+                glDisable(GL_DEPTH_TEST);
+                glDrawArrays(GL_TRIANGLES, 0, 6);
+                horizontal = !horizontal;
+                if (first_iteration)
+                    first_iteration = false;
+            }
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
+
+            bloomShader.Bind();
+            glBindVertexArray(quadVAO);
+            glDisable(GL_DEPTH_TEST);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, splitBuffers[0]);
+            bloomShader.SetUniform1i("colorTexture", 0);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, bloomBuffers[!horizontal]);
+            bloomShader.SetUniform1i("brightTexture", 1);
+            bloomShader.SetUniform1f("bloomIntensity", bloomIntensity);
+
+
+
+            //framebufferShader.Bind();
+            //glBindVertexArray(quadVAO);
+            //glDisable(GL_DEPTH_TEST);
+            //glActiveTexture(GL_TEXTURE0);
+            //glBindTexture(GL_TEXTURE_2D, splitBuffers[0]);
+            //framebufferShader.SetUniform1i("colorTexture", 0);
+            //glActiveTexture(GL_TEXTURE1);
+            //glBindTexture(GL_TEXTURE_2D, textureDepthbuffer);
+            //framebufferShader.SetUniform1i("depthTexture", 1);
+            //if(postprocess) framebufferShader.SetUniform1i("postprocess", 1);
+            //else framebufferShader.SetUniform1i("postprocess", 0);
 
             glDrawArrays(GL_TRIANGLES, 0, 6);
 
@@ -1287,7 +1395,9 @@ int main(void) {
                     ImGui::SliderFloat("transparency", &transparency, 0.0f, 1.0f);
 
                     ImGui::Text("PostProcess");
-                    ImGui::Checkbox("PostProcess", &postprocess);
+                    ImGui::SliderFloat("BloomIntensity", &bloomIntensity, 0.0f, 3.0f);
+                    ImGui::SliderFloat("BloomThreshold", &bloomThreshold, 0.0f, 1.0f);
+                    ImGui::SliderInt("bloomBlurAmount", &bloomBlurAmount, 0, 50);
                     ImGui::Image((void*)(intptr_t)textureColorbuffer, ImVec2(WINDOW_WIDTH / 3, WINDOW_HEIGHT / 3), ImVec2(0, 1), ImVec2(1, 0));
 
 

@@ -477,6 +477,9 @@
     <ClInclude Include="VertexBufferLayout.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="res\shaders\bloom.shader" />
+    <None Include="res\shaders\bloomBrightColorSplitter.shader" />
+    <None Include="res\shaders\Blur.shader" />
     <None Include="res\shaders\Framebuffer.shader" />
     <None Include="res\shaders\LightShader.shader" />
     <None Include="res\shaders\objShader_NormalMapping.shader" />
