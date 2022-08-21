@@ -1441,6 +1441,12 @@
     <None Include="res\shaders\bloom.shader">
       <Filter>リソース ファイル\shaders</Filter>
     </None>
+    <None Include="res\shaders\heavyGaussianBlur.shader">
+      <Filter>リソース ファイル\shaders</Filter>
+    </None>
+    <None Include="res\shaders\prerenderBlurBufferDoF.shader">
+      <Filter>リソース ファイル\shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="res\textures\gold-dollar.png">

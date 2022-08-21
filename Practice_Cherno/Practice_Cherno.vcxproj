@@ -481,6 +481,7 @@
     <None Include="res\shaders\bloomBrightColorSplitter.shader" />
     <None Include="res\shaders\Blur.shader" />
     <None Include="res\shaders\Framebuffer.shader" />
+    <None Include="res\shaders\heavyGaussianBlur.shader" />
     <None Include="res\shaders\LightShader.shader" />
     <None Include="res\shaders\objShader_NormalMapping.shader" />
     <None Include="res\shaders\objShader_Reflection.shader" />
@@ -489,6 +490,7 @@
     <None Include="res\shaders\objShader.shader" />
     <None Include="res\shaders\objShader_Specular.shader" />
     <None Include="res\shaders\practice1.shader" />
+    <None Include="res\shaders\prerenderBlurBufferDoF.shader" />
     <None Include="res\shaders\skybox.shader" />
     <None Include="res\shaders\WaterShader.shader" />
     <None Include="vendor\glm\detail\func_common.inl" />

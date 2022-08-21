@@ -1169,6 +1169,10 @@ int main(void) {
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         float focus = 0.3;
+        float blurRadius = 3.0;
+
+        Shader prerenderBlurBufferDoF("res/shaders/prerenderBlurBufferDoF");
+        Shader heavyGaussianBlur("res/shaders/heavyGaussianBlur.shader");
 
         /*util valiables*/        
 
@@ -1394,40 +1398,62 @@ int main(void) {
             glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
 
-            horizontal = true, first_iteration = true;
-            blurShader.Bind();
-            for (size_t i = 0; i < 100; i++)
-            {
-                glBindFramebuffer(GL_FRAMEBUFFER, blurFBO[horizontal]);
-                blurShader.SetUniform1i("horizontal", horizontal);
-                glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_2D, first_iteration ? tempColorbuffer : blurBuffers[!horizontal]);
-                blurShader.SetUniform1i("image", 0);
-                glBindVertexArray(quadVAO);
-                glDisable(GL_DEPTH_TEST);
-                glDrawArrays(GL_TRIANGLES, 0, 6);
-                horizontal = !horizontal;
-                if (first_iteration)
-                    first_iteration = false;
-            }
+            //horizontal = true, first_iteration = true;
+            //blurShader.Bind();
+            //for (size_t i = 0; i < 100; i++)
+            //{
+            //    glBindFramebuffer(GL_FRAMEBUFFER, blurFBO[horizontal]);
+            //    blurShader.SetUniform1i("horizontal", horizontal);
+            //    glActiveTexture(GL_TEXTURE0);
+            //    glBindTexture(GL_TEXTURE_2D, first_iteration ? tempColorbuffer : blurBuffers[!horizontal]);
+            //    blurShader.SetUniform1i("image", 0);
+            //    glBindVertexArray(quadVAO);
+            //    glDisable(GL_DEPTH_TEST);
+            //    glDrawArrays(GL_TRIANGLES, 0, 6);
+            //    horizontal = !horizontal;
+            //    if (first_iteration)
+            //        first_iteration = false;
+            //}
 
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-            glClear(GL_COLOR_BUFFER_BIT);
+            //glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            //glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            //glClear(GL_COLOR_BUFFER_BIT);
 
-            framebufferShader.Bind();
+            //prerenderBlurBufferDoF.Bind();
+            //glBindVertexArray(quadVAO);
+            //glDisable(GL_DEPTH_TEST);
+            //glActiveTexture(GL_TEXTURE0);
+            //glBindTexture(GL_TEXTURE_2D, tempColorbuffer);
+            //prerenderBlurBufferDoF.SetUniform1i("colorTexture", 0);
+            //glActiveTexture(GL_TEXTURE1);
+            //glBindTexture(GL_TEXTURE_2D, blurBuffers[!horizontal]);
+            //prerenderBlurBufferDoF.SetUniform1i("blurTexture", 1);            
+            //glActiveTexture(GL_TEXTURE2);
+            //glBindTexture(GL_TEXTURE_2D, textureDepthbuffer);
+            //prerenderBlurBufferDoF.SetUniform1i("depthTexture", 2);
+            //prerenderBlurBufferDoF.SetUniform1f("focusDistance", focus);
+
+            heavyGaussianBlur.Bind();
             glBindVertexArray(quadVAO);
             glDisable(GL_DEPTH_TEST);
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, tempColorbuffer);
-            framebufferShader.SetUniform1i("colorTexture", 0);
+            heavyGaussianBlur.SetUniform1i("image", 0);
             glActiveTexture(GL_TEXTURE1);
-            glBindTexture(GL_TEXTURE_2D, blurBuffers[!horizontal]);
-            framebufferShader.SetUniform1i("blurTexture", 1);            
-            glActiveTexture(GL_TEXTURE2);
             glBindTexture(GL_TEXTURE_2D, textureDepthbuffer);
-            framebufferShader.SetUniform1i("depthTexture", 2);
-            framebufferShader.SetUniform1f("focusDistance", focus);
+            heavyGaussianBlur.SetUniform1i("depthTexture", 1);
+            heavyGaussianBlur.SetUniform1f("focusDistance", focus);
+            heavyGaussianBlur.SetUniform1f("blurRadius", blurRadius);
+
+            //framebufferShader.Bind();
+            //glBindVertexArray(quadVAO);
+            //glDisable(GL_DEPTH_TEST);
+            //glActiveTexture(GL_TEXTURE0);
+            //glBindTexture(GL_TEXTURE_2D, tempColorbuffer);
+            //framebufferShader.SetUniform1i("colorTexture", 0);           
+            //glActiveTexture(GL_TEXTURE1);
+            //glBindTexture(GL_TEXTURE_2D, textureDepthbuffer);
+            //framebufferShader.SetUniform1i("depthTexture", 1);
 
             glDrawArrays(GL_TRIANGLES, 0, 6);
 
@@ -1463,6 +1489,7 @@ int main(void) {
                     ImGui::SliderFloat("BloomThreshold", &bloomThreshold, 0.0f, 1.0f);
                     ImGui::SliderInt("bloomBlurAmount", &bloomBlurAmount, 0, 50);
                     ImGui::SliderFloat("FocusDistance", &focus, 0.0f, 1.0f);
+                    ImGui::SliderFloat("BlurRadius", &blurRadius, 0.0f, 5.0f);
                     ImGui::Image((void*)(intptr_t)textureColorbuffer, ImVec2(WINDOW_WIDTH / 3, WINDOW_HEIGHT / 3), ImVec2(0, 1), ImVec2(1, 0));
 
 
