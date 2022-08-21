@@ -1049,23 +1049,14 @@ int main(void) {
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorbuffer, 0);
 
         unsigned int textureDepthbuffer;
-        /* テクスチャオブジェクトの生成 */
         glGenTextures(1, &textureDepthbuffer);
         glBindTexture(GL_TEXTURE_2D, textureDepthbuffer);
-
-        /* デプステクスチャの割り当て */
         glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, WINDOW_WIDTH, WINDOW_HEIGHT, 0,
             GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, 0);
-
-        /* テクスチャを拡大・縮小する方法の指定 */
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-        /* テクスチャの繰り返し方法の指定 */
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-
-        /* テクスチャオブジェクトの結合解除 */
         glBindTexture(GL_TEXTURE_2D, 0);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, textureDepthbuffer, 0);
 
@@ -1126,6 +1117,24 @@ int main(void) {
             );
         }
 
+        unsigned int blurFBO[2];
+        unsigned int blurBuffers[2];
+        glGenFramebuffers(2, blurFBO);
+        glGenTextures(2, blurBuffers);
+        for (size_t i = 0; i < 2; i++)
+        {
+            glBindFramebuffer(GL_FRAMEBUFFER, blurFBO[i]);
+            glBindTexture(GL_TEXTURE_2D, blurBuffers[i]);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WINDOW_WIDTH, WINDOW_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glFramebufferTexture2D(
+                GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, blurBuffers[i], 0
+            );
+        }
+
         Shader brightSplitShader("res/shaders/bloomBrightColorSplitter.shader");
         float bloomThreshold = 0.7;
 
@@ -1134,6 +1143,32 @@ int main(void) {
 
         Shader bloomShader("res/shaders/bloom.shader");
         float bloomIntensity = 1.0f;
+
+
+        unsigned int tempFBO;
+        glGenFramebuffers(1, &tempFBO);
+        glBindFramebuffer(GL_FRAMEBUFFER, tempFBO);
+
+        unsigned int tempColorbuffer;
+        glGenTextures(1, &tempColorbuffer);
+        glBindTexture(GL_TEXTURE_2D, tempColorbuffer);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, WINDOW_WIDTH, WINDOW_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);            
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tempColorbuffer, 0);
+        unsigned int rbo;
+        glGenRenderbuffers(1, &rbo);
+        glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, WINDOW_WIDTH, WINDOW_HEIGHT);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+            std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        float focus = 0.3;
 
         /*util valiables*/        
 
@@ -1327,6 +1362,7 @@ int main(void) {
             {
                 glBindFramebuffer(GL_FRAMEBUFFER, bloomFBO[horizontal]);
                 blurShader.SetUniform1i("horizontal", horizontal);
+                glActiveTexture(GL_TEXTURE0);
                 glBindTexture(GL_TEXTURE_2D, first_iteration ? splitBuffers[1] : bloomBuffers[!horizontal]);
                 blurShader.SetUniform1i("image", 0);
                 glBindVertexArray(quadVAO);
@@ -1352,18 +1388,46 @@ int main(void) {
             bloomShader.SetUniform1f("bloomIntensity", bloomIntensity);
 
 
+            glBindFramebuffer(GL_FRAMEBUFFER, tempFBO);
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
 
-            //framebufferShader.Bind();
-            //glBindVertexArray(quadVAO);
-            //glDisable(GL_DEPTH_TEST);
-            //glActiveTexture(GL_TEXTURE0);
-            //glBindTexture(GL_TEXTURE_2D, splitBuffers[0]);
-            //framebufferShader.SetUniform1i("colorTexture", 0);
-            //glActiveTexture(GL_TEXTURE1);
-            //glBindTexture(GL_TEXTURE_2D, textureDepthbuffer);
-            //framebufferShader.SetUniform1i("depthTexture", 1);
-            //if(postprocess) framebufferShader.SetUniform1i("postprocess", 1);
-            //else framebufferShader.SetUniform1i("postprocess", 0);
+            horizontal = true, first_iteration = true;
+            blurShader.Bind();
+            for (size_t i = 0; i < 100; i++)
+            {
+                glBindFramebuffer(GL_FRAMEBUFFER, blurFBO[horizontal]);
+                blurShader.SetUniform1i("horizontal", horizontal);
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, first_iteration ? tempColorbuffer : blurBuffers[!horizontal]);
+                blurShader.SetUniform1i("image", 0);
+                glBindVertexArray(quadVAO);
+                glDisable(GL_DEPTH_TEST);
+                glDrawArrays(GL_TRIANGLES, 0, 6);
+                horizontal = !horizontal;
+                if (first_iteration)
+                    first_iteration = false;
+            }
+
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
+
+            framebufferShader.Bind();
+            glBindVertexArray(quadVAO);
+            glDisable(GL_DEPTH_TEST);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, tempColorbuffer);
+            framebufferShader.SetUniform1i("colorTexture", 0);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, blurBuffers[!horizontal]);
+            framebufferShader.SetUniform1i("blurTexture", 1);            
+            glActiveTexture(GL_TEXTURE2);
+            glBindTexture(GL_TEXTURE_2D, textureDepthbuffer);
+            framebufferShader.SetUniform1i("depthTexture", 2);
+            framebufferShader.SetUniform1f("focusDistance", focus);
 
             glDrawArrays(GL_TRIANGLES, 0, 6);
 
@@ -1398,6 +1462,7 @@ int main(void) {
                     ImGui::SliderFloat("BloomIntensity", &bloomIntensity, 0.0f, 3.0f);
                     ImGui::SliderFloat("BloomThreshold", &bloomThreshold, 0.0f, 1.0f);
                     ImGui::SliderInt("bloomBlurAmount", &bloomBlurAmount, 0, 50);
+                    ImGui::SliderFloat("FocusDistance", &focus, 0.0f, 1.0f);
                     ImGui::Image((void*)(intptr_t)textureColorbuffer, ImVec2(WINDOW_WIDTH / 3, WINDOW_HEIGHT / 3), ImVec2(0, 1), ImVec2(1, 0));
 
 

@@ -19,8 +19,9 @@ in vec2 v_TexCoord;
 layout(location = 0) out vec4 color;
 
 uniform sampler2D colorTexture;
+uniform sampler2D blurTexture;
 uniform sampler2D depthTexture;
-uniform int postprocess;
+uniform float focusDistance;
 
 void main()
 {
@@ -34,5 +35,6 @@ void main()
     //z fog
     //color = vec4(texture(colorTexture, v_TexCoord).xyz * (1.0 - z*0.5) + vec3(0.7,0.8,1.0) * z * 0.5  , 1.0) ;
 
-    color = texture(colorTexture, v_TexCoord);
+    float rate = abs(z - focusDistance);
+    color = vec4(texture(colorTexture, v_TexCoord).xyz * (1.0 - rate) + texture(blurTexture,v_TexCoord).xyz * rate,1.0);
 }
